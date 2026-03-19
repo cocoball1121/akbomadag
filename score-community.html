@@ -24,7 +24,8 @@
 <!-- Firebase -->
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js';
-  import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword,
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
+    createUserWithEmailAndPassword,
     signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile }
     from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js';
   import { getFirestore, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc,
@@ -51,13 +52,22 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
     const stor = getStorage(app);
-    window._fb = { auth, db, stor, GoogleAuthProvider, signInWithPopup,
+    window._fb = { auth, db, stor, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
       createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
       onAuthStateChanged, updateProfile,
       doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc,
       collection, getDocs, query, where, orderBy, limit,
       increment, arrayUnion, arrayRemove, serverTimestamp,
       ref, uploadString, getDownloadURL, deleteObject };
+    // 리다이렉트 로그인 결과 처리
+    getRedirectResult(auth).then(result => {
+      if (result?.user) {
+        window._me = result.user;
+        updateAuthUI(result.user);
+        showToast && showToast('✓ Google 로그인됐습니다!', 'success');
+      }
+    }).catch(e => console.warn('[Auth] redirect result error:', e));
+
     onAuthStateChanged(auth, async user => {
       window._me = user;
       if (user && window.loadAdmins) await window.loadAdmins();
@@ -992,9 +1002,17 @@ async function googleLogin() {
   try {
     const fb = await waitForFb();
     const provider = new fb.GoogleAuthProvider();
-    await fb.signInWithPopup(fb.auth, provider);
-    document.getElementById('auth-modal').classList.remove('open');
-    showToast('✓ Google 로그인됐습니다!', 'success');
+    // PWA / 모바일에서는 리다이렉트 방식 사용 (팝업이 막힘)
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+    if (isMobile || isPWA) {
+      showToast('Google 로그인 페이지로 이동합니다...', '');
+      await fb.signInWithRedirect(fb.auth, provider);
+    } else {
+      await fb.signInWithPopup(fb.auth, provider);
+      document.getElementById('auth-modal').classList.remove('open');
+      showToast('✓ Google 로그인됐습니다!', 'success');
+    }
   } catch(e) {
     if (e.message === 'Firebase 초기화 시간 초과') {
       showToast('Firebase 연결 중이에요. 잠시 후 다시 시도해주세요.', 'error');
