@@ -638,12 +638,17 @@ label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
 <script>
-// 스크립트 로딩 전 클릭 방지용 안전 스텁
-window.goHome = function() { location.reload(); };
+// 스크립트 로딩 전 클릭 방지용 임시 스텁 (메인 스크립트 로드 후 자동 교체됨)
+window._stubReady = false;
+window.goHome = function() { if(window._stubReady) return; location.reload(); };
 window.showSearchPage = function() {};
 window.openCatManage = function() {};
 window.showAdminPage = function() {};
-window.openAuth = function() {};
+// openAuth: 모달 직접 열기 (스텁도 작동하도록)
+window.openAuth = function() {
+  var m = document.getElementById('auth-modal');
+  if (m) m.classList.add('open');
+};
 
 if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -959,7 +964,7 @@ function updateAuthUI(user) {
         <div onclick="handleUserClick()" style="width:34px;height:34px;border-radius:50%;background:var(--accent-bg);border:1px solid rgba(184,92,42,0.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--accent);cursor:pointer;" title="${name} — 클릭하여 로그아웃">${user.photoURL ? `<img src="${user.photoURL}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : initial}</div>
       </div>`;
   } else {
-    el.innerHTML = `<button class="btn btn-outline" onclick="openAuth()" style="font-size:13px;">로그인</button>`;
+    el.innerHTML = `<button class="btn btn-outline" onclick="document.getElementById('auth-modal').classList.add('open')" style="font-size:13px;">로그인</button>`;
   }
 }
 
@@ -1840,6 +1845,7 @@ function showToast(msg,type=''){
 
 // ── BOOT ──
 setTimeout(init, 100);
+window._stubReady = true;
 
 // ── PWA: Service Worker 등록 ──
 if ('serviceWorker' in navigator) {
