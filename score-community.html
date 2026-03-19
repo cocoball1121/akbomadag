@@ -84,10 +84,19 @@
       }
     });
 
-    // 리다이렉트 결과 확인 (로그 용도)
+    // 리다이렉트 결과 확인
     getRedirectResult(auth)
-      .then(r => { if (r?.user) console.log('[Auth] 리다이렉트 로그인 성공:', r.user.email); })
-      .catch(e => console.warn('[Auth] redirect result:', e.code, e.message));
+      .then(r => {
+        if (r?.user) {
+          console.log('[Auth] 리다이렉트 로그인 성공:', r.user.email);
+          document.getElementById('auth-modal')?.classList.remove('open');
+          if (window.showToast) showToast('✓ Google 로그인됐습니다!', 'success');
+        }
+      })
+      .catch(e => {
+        console.warn('[Auth] redirect result:', e.code, e.message);
+        if (window.showToast) showToast('로그인 오류: ' + (e.code||e.message), 'error');
+      });
   } else {
     window._fb = null; window._me = null;
     setTimeout(() => { if (window.updateAuthUI) window.updateAuthUI(null); }, 300);
@@ -1026,23 +1035,29 @@ async function googleLogin() {
   try {
     const fb = await waitForFb();
     const provider = new fb.GoogleAuthProvider();
-    // PWA / 모바일에서는 리다이렉트 방식 사용 (팝업이 막힘)
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches;
-    if (isMobile || isPWA) {
-      showToast('Google 로그인 페이지로 이동합니다...', '');
-      sessionStorage.setItem('redirect-login', '1');
-      await fb.signInWithRedirect(fb.auth, provider);
-    } else {
-      await fb.signInWithPopup(fb.auth, provider);
-      document.getElementById('auth-modal').classList.remove('open');
-      showToast('✓ Google 로그인됐습니다!', 'success');
+    provider.setCustomParameters({ prompt: 'select_account' });
+    try {
+      // 먼저 팝업 시도
+      const result = await fb.signInWithPopup(fb.auth, provider);
+      if (result.user) {
+        document.getElementById('auth-modal').classList.remove('open');
+        showToast('✓ Google 로그인됐습니다!', 'success');
+      }
+    } catch(popupErr) {
+      // 팝업 실패 시 리다이렉트로 폴백
+      if (popupErr.code === 'auth/popup-blocked' || popupErr.code === 'auth/popup-closed-by-user') {
+        showToast('Google 로그인 페이지로 이동합니다...', '');
+        sessionStorage.setItem('redirect-login', '1');
+        await fb.signInWithRedirect(fb.auth, provider);
+      } else {
+        throw popupErr;
+      }
     }
   } catch(e) {
     if (e.message === 'Firebase 초기화 시간 초과') {
       showToast('Firebase 연결 중이에요. 잠시 후 다시 시도해주세요.', 'error');
     } else {
-      showToast('로그인 실패: ' + e.message, 'error');
+      showToast('로그인 실패: ' + (e.code || e.message), 'error');
     }
   }
 }
