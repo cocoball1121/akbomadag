@@ -59,20 +59,35 @@
       collection, getDocs, query, where, orderBy, limit,
       increment, arrayUnion, arrayRemove, serverTimestamp,
       ref, uploadString, getDownloadURL, deleteObject };
-    // 리다이렉트 로그인 결과 처리
-    getRedirectResult(auth).then(result => {
-      if (result?.user) {
-        window._me = result.user;
-        updateAuthUI(result.user);
-        showToast && showToast('✓ Google 로그인됐습니다!', 'success');
-      }
-    }).catch(e => console.warn('[Auth] redirect result error:', e));
-
+    // onAuthStateChanged — 리다이렉트 후 자동으로 user 받음
     onAuthStateChanged(auth, async user => {
       window._me = user;
+      // updateAuthUI / loadAdmins 가 아직 정의 안 됐을 수 있으므로 대기
+      const waitFn = (fn, ms=2000) => new Promise(res => {
+        if (window[fn]) { res(); return; }
+        const start = Date.now();
+        const t = setInterval(() => {
+          if (window[fn] || Date.now()-start>ms) { clearInterval(t); res(); }
+        }, 50);
+      });
+      await waitFn('updateAuthUI');
       if (user && window.loadAdmins) await window.loadAdmins();
       if (window.updateAuthUI) window.updateAuthUI(user);
+      // 리다이렉트 로그인 후 모달 닫기
+      if (user) {
+        const modal = document.getElementById('auth-modal');
+        if (modal) modal.classList.remove('open');
+        if (window.showToast && sessionStorage.getItem('redirect-login')) {
+          sessionStorage.removeItem('redirect-login');
+          window.showToast('✓ Google 로그인됐습니다!', 'success');
+        }
+      }
     });
+
+    // 리다이렉트 결과 확인 (로그 용도)
+    getRedirectResult(auth)
+      .then(r => { if (r?.user) console.log('[Auth] 리다이렉트 로그인 성공:', r.user.email); })
+      .catch(e => console.warn('[Auth] redirect result:', e.code, e.message));
   } else {
     window._fb = null; window._me = null;
     setTimeout(() => { if (window.updateAuthUI) window.updateAuthUI(null); }, 300);
@@ -1007,6 +1022,7 @@ async function googleLogin() {
     const isPWA = window.matchMedia('(display-mode: standalone)').matches;
     if (isMobile || isPWA) {
       showToast('Google 로그인 페이지로 이동합니다...', '');
+      sessionStorage.setItem('redirect-login', '1');
       await fb.signInWithRedirect(fb.auth, provider);
     } else {
       await fb.signInWithPopup(fb.auth, provider);
