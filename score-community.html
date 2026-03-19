@@ -1,0 +1,1859 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>악보마당 — 악보 커뮤니티</title>
+
+<!-- PWA -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#b85c2a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="악보마당">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- OG / SNS 공유 -->
+<meta property="og:title" content="악보마당">
+<meta property="og:description" content="누구나 악보를 올리고 함께 나눠요">
+<meta property="og:type" content="website">
+<meta property="og:image" content="./icon-512.png">
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&family=Pretendard:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js';
+  import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword,
+    signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile }
+    from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js';
+  import { getFirestore, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc,
+    collection, getDocs, query, where, orderBy, limit, increment, arrayUnion, arrayRemove, serverTimestamp }
+    from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js';
+  import { getStorage, ref, uploadString, getDownloadURL, deleteObject }
+    from 'https://www.gstatic.com/firebasejs/12.10.0/firebase-storage.js';
+
+  // ── Firebase 설정값을 붙여넣으세요 ──
+  const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyDkt_1biw8JzfG2pGPLLFMa7l8o4cFCLNU",
+    authDomain:        "score-save-cb99c.firebaseapp.com",
+    projectId:         "score-save-cb99c",
+    storageBucket:     "score-save-cb99c.firebasestorage.app",
+    messagingSenderId: "198742456037",
+    appId:             "1:198742456037:web:b82b0efb2fcc1cef87860c",
+    measurementId:     "G-JQNVWL0NMB"
+  };
+  // ────────────────────────────────────
+
+  const isConfigured = FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY';
+  if (isConfigured) {
+    const app = initializeApp(FIREBASE_CONFIG);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const stor = getStorage(app);
+    window._fb = { auth, db, stor, GoogleAuthProvider, signInWithPopup,
+      createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
+      onAuthStateChanged, updateProfile,
+      doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc,
+      collection, getDocs, query, where, orderBy, limit,
+      increment, arrayUnion, arrayRemove, serverTimestamp,
+      ref, uploadString, getDownloadURL, deleteObject };
+    onAuthStateChanged(auth, async user => {
+      window._me = user;
+      if (user && window.loadAdmins) await window.loadAdmins();
+      if (window.updateAuthUI) window.updateAuthUI(user);
+    });
+  } else {
+    window._fb = null; window._me = null;
+    setTimeout(() => { if (window.updateAuthUI) window.updateAuthUI(null); }, 300);
+  }
+</script>
+
+<style>
+:root {
+  --bg: #faf8f4;
+  --bg2: #f2efe8;
+  --surface: #ffffff;
+  --border: rgba(0,0,0,0.08);
+  --border2: rgba(0,0,0,0.14);
+  --text: #1a1814;
+  --text2: #6b6660;
+  --text3: #aaa49e;
+  --accent: #b85c2a;
+  --accent2: #d4703a;
+  --accent-bg: rgba(184,92,42,0.08);
+  --green: #2a7a4a;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Pretendard', sans-serif; min-height: 100vh; }
+a { color: inherit; text-decoration: none; }
+
+/* NAV */
+nav {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: var(--shadow);
+}
+.nav-inner {
+  max-width: 1100px; margin: 0 auto;
+  display: flex; align-items: center;
+  padding: 0 1.5rem; height: 58px; gap: 16px;
+}
+.logo {
+  font-family: 'Nanum Myeongjo', serif;
+  font-size: 22px; font-weight: 700;
+  color: var(--accent); letter-spacing: -0.02em;
+  cursor: pointer; flex-shrink: 0;
+}
+.logo span { color: var(--text); }
+.nav-cats {
+  display: flex; gap: 4px; flex: 1; overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav-cats::-webkit-scrollbar { display: none; }
+.nav-cat-btn {
+  padding: 5px 12px; border-radius: 20px; font-size: 13px;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--text2); white-space: nowrap; transition: all 0.12s;
+  font-family: 'Pretendard', sans-serif;
+}
+.nav-cat-btn:hover, .nav-cat-btn.active {
+  background: var(--accent-bg); color: var(--accent); font-weight: 500;
+}
+.nav-right { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.btn {
+  padding: 7px 16px; border-radius: var(--radius-sm);
+  font-size: 13px; font-family: 'Pretendard', sans-serif;
+  cursor: pointer; transition: all 0.15s; font-weight: 500; border: none;
+}
+.btn-outline { background: transparent; border: 1px solid var(--border2); color: var(--text2); }
+.btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+.btn-accent { background: var(--accent); color: white; }
+.btn-accent:hover { background: var(--accent2); }
+
+/* LAYOUT */
+.layout { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; display: grid; grid-template-columns: 1fr 280px; gap: 2rem; }
+@media(max-width:768px){ .layout { grid-template-columns: 1fr; padding: 1rem; } .sidebar { display: none; } }
+
+/* HERO SEARCH */
+.hero {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  display: flex; align-items: center; gap: 16px;
+  box-shadow: var(--shadow);
+}
+.hero-title { font-family: 'Nanum Myeongjo', serif; font-size: 20px; margin-bottom: 4px; }
+.hero-sub { font-size: 13px; color: var(--text2); }
+.search-wrap { flex: 1; display: flex; gap: 8px; }
+.search-input {
+  flex: 1; padding: 10px 16px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border2); background: var(--bg);
+  font-size: 14px; font-family: 'Pretendard', sans-serif;
+  outline: none; transition: border-color 0.12s; color: var(--text);
+}
+.search-input:focus { border-color: var(--accent); }
+
+/* POST CARD */
+.post-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: all 0.15s;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  margin-bottom: 12px;
+}
+.post-card:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,0.1); border-color: var(--border2); }
+.post-card-inner { display: flex; gap: 0; }
+.post-thumb {
+  width: 110px; flex-shrink: 0;
+  background: var(--bg2);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+}
+.post-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.post-thumb-placeholder { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 1rem; }
+.post-thumb-icon { font-size: 28px; opacity: 0.4; }
+.post-thumb-type {
+  position: absolute; bottom: 6px; right: 6px;
+  font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600;
+}
+.post-body { flex: 1; padding: 14px 16px; }
+.post-cat { font-size: 11px; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.post-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; line-height: 1.4; }
+.post-desc { font-size: 12px; color: var(--text2); margin-bottom: 10px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.post-meta { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--text3); flex-wrap: wrap; }
+.post-meta span { display: flex; align-items: center; gap: 3px; }
+.post-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+.post-tag { font-size: 10px; padding: 2px 7px; border-radius: 20px; background: var(--bg2); color: var(--text2); border: 1px solid var(--border); }
+
+/* SIDEBAR */
+.sidebar { display: flex; flex-direction: column; gap: 16px; }
+.side-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.2rem; box-shadow: var(--shadow); }
+.side-title { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+.side-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; color: var(--text2); cursor: pointer; transition: color 0.1s; }
+.side-item:last-child { border-bottom: none; }
+.side-item:hover { color: var(--accent); }
+.side-num { margin-left: auto; font-size: 11px; color: var(--text3); }
+.hot-badge { font-size: 9px; background: var(--accent); color: white; padding: 1px 5px; border-radius: 4px; margin-left: 4px; }
+
+/* POST DETAIL */
+.detail-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; margin-bottom: 1.2rem; box-shadow: var(--shadow); }
+.detail-cat { font-size: 12px; color: var(--accent); font-weight: 600; letter-spacing: 0.06em; margin-bottom: 8px; }
+.detail-title { font-family: 'Nanum Myeongjo', serif; font-size: 26px; font-weight: 700; margin-bottom: 12px; line-height: 1.3; }
+.detail-author-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+.avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent-bg); border: 1px solid rgba(184,92,42,0.2); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: var(--accent); flex-shrink: 0; overflow: hidden; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.detail-body { font-size: 14px; color: var(--text2); line-height: 1.8; margin-bottom: 1.5rem; }
+.detail-file-box { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem 1.2rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: border-color 0.12s; }
+.detail-file-box:hover { border-color: var(--accent); }
+.detail-actions { display: flex; gap: 8px; align-items: center; padding-top: 1rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.like-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 16px; border-radius: 20px; font-size: 13px;
+  border: 1px solid var(--border2); background: transparent;
+  cursor: pointer; font-family: 'Pretendard', sans-serif;
+  color: var(--text2); transition: all 0.12s;
+}
+.like-btn:hover, .like-btn.liked { border-color: #e25c5c; color: #e25c5c; background: rgba(226,92,92,0.06); }
+
+/* COMMENTS */
+.comment-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); }
+.comment-title { font-size: 14px; font-weight: 600; margin-bottom: 1rem; }
+.comment-input-wrap { display: flex; gap: 10px; margin-bottom: 1.5rem; }
+.comment-input { flex: 1; padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border2); background: var(--bg); font-size: 13px; font-family: 'Pretendard', sans-serif; outline: none; resize: vertical; min-height: 60px; color: var(--text); }
+.comment-input:focus { border-color: var(--accent); }
+.comment-item { display: flex; gap: 10px; padding: 12px 0; border-bottom: 0.5px solid var(--border); }
+.comment-item:last-child { border-bottom: none; }
+.comment-body { flex: 1; }
+.comment-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.comment-text { font-size: 13px; color: var(--text2); line-height: 1.6; }
+.comment-time { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+/* UPLOAD FORM */
+.form-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1rem; box-shadow: var(--shadow); }
+.form-title { font-family: 'Nanum Myeongjo', serif; font-size: 20px; margin-bottom: 1.5rem; }
+label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.05em; }
+.form-input {
+  width: 100%; padding: 10px 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border2); background: var(--bg);
+  font-size: 14px; font-family: 'Pretendard', sans-serif;
+  outline: none; transition: border-color 0.12s; color: var(--text);
+}
+.form-input:focus { border-color: var(--accent); }
+.form-row { margin-bottom: 16px; }
+.drop-zone {
+  border: 2px dashed var(--border2); border-radius: var(--radius);
+  padding: 2.5rem; text-align: center; cursor: pointer;
+  transition: all 0.15s;
+}
+.drop-zone:hover, .drop-zone.over { border-color: var(--accent); background: var(--accent-bg); }
+.drop-icon { font-size: 36px; margin-bottom: 8px; }
+
+/* MODAL */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5); z-index: 200;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface); border-radius: 16px;
+  padding: 2rem; width: 420px; max-width: 94vw;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.modal-title { font-family: 'Nanum Myeongjo', serif; font-size: 20px; margin-bottom: 1.4rem; }
+.modal-tabs { display: flex; gap: 0; margin-bottom: 1.4rem; border-bottom: 1px solid var(--border); }
+.modal-tab { flex: 1; padding: 10px; background: transparent; border: none; border-bottom: 2px solid transparent; font-size: 14px; cursor: pointer; font-family: 'Pretendard', sans-serif; color: var(--text2); transition: all 0.12s; }
+.modal-tab.active { border-bottom-color: var(--accent); color: var(--accent); font-weight: 500; }
+.modal-close { display: block; width: 100%; margin-top: 1rem; padding: 9px; background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text3); cursor: pointer; font-family: 'Pretendard', sans-serif; font-size: 13px; transition: all 0.12s; }
+.modal-close:hover { color: var(--text); border-color: var(--border2); }
+.divider { display: flex; align-items: center; gap: 10px; margin: 1rem 0; font-size: 12px; color: var(--text3); }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.google-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 11px; border-radius: var(--radius-sm); background: var(--bg2); border: 1px solid var(--border2); font-size: 14px; cursor: pointer; font-family: 'Pretendard', sans-serif; font-weight: 500; color: var(--text); transition: all 0.12s; margin-bottom: 6px; }
+.google-btn:hover { border-color: var(--accent); }
+
+/* TOAST */
+.toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--text); color: var(--bg); padding: 12px 18px; border-radius: var(--radius-sm); font-size: 13px; z-index: 400; transform: translateY(20px); opacity: 0; transition: all 0.2s; pointer-events: none; }
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-left: 3px solid #2a7a4a; }
+.toast.error { border-left: 3px solid #c0392b; }
+
+/* EMPTY / LOADING */
+.empty { text-align: center; padding: 4rem 2rem; color: var(--text3); }
+.empty-icon { font-size: 48px; opacity: 0.3; margin-bottom: 12px; }
+.loading { display: flex; align-items: center; justify-content: center; padding: 3rem; gap: 10px; color: var(--text3); font-size: 14px; }
+.spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* PAGES */
+.page { display: none; }
+.page.active { display: block; }
+
+/* BACK BTN */
+.back-btn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 20px; background: transparent; border: 1px solid var(--border); color: var(--text2); cursor: pointer; font-size: 13px; font-family: 'Pretendard', sans-serif; margin-bottom: 1.2rem; transition: all 0.12s; }
+.back-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* SCORE VIEWER IN DETAIL */
+.score-viewer { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; margin: 1rem 0; }
+.viewer-toolbar { display: flex; gap: 6px; align-items: center; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.viewer-toolbar button { padding: 4px 10px; border-radius: 6px; background: transparent; border: 1px solid var(--border); color: var(--text2); cursor: pointer; font-size: 11px; font-family: 'Pretendard',sans-serif; }
+.viewer-toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+#detail-canvas { max-width: 100%; display: block; margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <div class="logo" onclick="goHome()">악보<span>마당</span></div>
+    <div class="nav-cats" id="nav-cats"></div>
+    <div class="nav-right">
+      <button class="btn btn-outline" style="font-size:12px;" onclick="showSearchPage()">🔍</button>
+      <button id="cat-manage-btn" onclick="openCatManage()" style="display:none;font-size:12px;padding:6px 12px;border-radius:var(--radius-sm);background:transparent;border:1px solid var(--border);color:var(--text2);cursor:pointer;font-family:'Pretendard',sans-serif;" title="카테고리 관리">⚙ 카테고리</button>
+      <button id="admin-page-btn" onclick="showAdminPage()" style="display:none;font-size:12px;padding:6px 12px;border-radius:var(--radius-sm);background:transparent;border:1px solid var(--border);color:var(--text2);cursor:pointer;font-family:'Pretendard',sans-serif;" title="관리자 설정">👑 관리자</button>
+      <div id="nav-auth"></div>
+    </div>
+  </div>
+</nav>
+
+<!-- PAGES -->
+<div style="max-width:1100px;margin:0 auto;">
+
+  <!-- HOME -->
+  <div class="page active" id="page-home">
+    <div style="padding:1.5rem;">
+      <!-- hero -->
+      <div class="hero">
+        <div style="flex-shrink:0;">
+          <div class="hero-title">🎼 악보마당</div>
+          <div class="hero-sub">누구나 악보를 올리고 함께 나눠요</div>
+        </div>
+        <div class="search-wrap">
+          <input class="search-input" placeholder="곡명, 작곡가, 태그 검색..." id="home-search" onkeydown="if(event.key==='Enter')doSearch()">
+          <button class="btn btn-accent" onclick="doSearch()">검색</button>
+        </div>
+      </div>
+
+      <div class="layout" style="padding:0;max-width:100%;">
+        <!-- MAIN -->
+        <div>
+          <!-- 카테고리 탭 -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.2rem;" id="cat-tabs"></div>
+
+          <!-- 정렬 -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+            <span id="post-count-label" style="font-size:13px;color:var(--text3);"></span>
+            <div style="display:flex;gap:4px;">
+              <button class="btn btn-outline" id="sort-latest" onclick="setSort('latest')" style="font-size:12px;padding:5px 12px;">최신순</button>
+              <button class="btn btn-outline" id="sort-likes" onclick="setSort('likes')" style="font-size:12px;padding:5px 12px;">인기순</button>
+            </div>
+          </div>
+
+          <div id="posts-list"></div>
+          <div id="posts-empty" class="empty" style="display:none;">
+            <div class="empty-icon">🎵</div>
+            <p>아직 악보가 없어요.<br>첫 번째로 올려보세요!</p>
+          </div>
+          <div id="posts-loading" class="loading"><div class="spinner"></div> 불러오는 중...</div>
+        </div>
+
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+          <div class="side-card">
+            <div class="side-title">카테고리</div>
+            <div id="sidebar-cats"></div>
+          </div>
+          <div class="side-card">
+            <div class="side-title">인기 악보</div>
+            <div id="sidebar-hot"></div>
+          </div>
+          <div class="side-card" style="text-align:center;">
+            <div style="font-size:28px;margin-bottom:8px;">🎼</div>
+            <div style="font-size:13px;font-weight:500;margin-bottom:4px;">악보를 올려보세요</div>
+            <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">누구나 자유롭게 공유</div>
+            <button class="btn btn-accent" style="width:100%;" onclick="startUpload()">+ 악보 올리기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAIL -->
+  <div class="page" id="page-detail">
+    <div style="padding:1.5rem;">
+      <button class="back-btn" onclick="goHome()">← 목록으로</button>
+      <div class="layout" style="padding:0;max-width:100%;">
+        <div>
+          <div class="detail-wrap" id="detail-content"></div>
+          <div class="comment-section" id="comment-section"></div>
+        </div>
+        <div class="sidebar">
+          <div class="side-card">
+            <div class="side-title">같은 카테고리</div>
+            <div id="related-posts"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UPLOAD -->
+  <div class="page" id="page-upload">
+    <div style="padding:1.5rem;max-width:700px;">
+      <button class="back-btn" onclick="goHome()">← 취소</button>
+      <div class="form-card">
+        <div class="form-title">🎼 악보 올리기</div>
+
+        <div class="form-row">
+          <label>카테고리 *</label>
+          <select class="form-input" id="up-cat">
+            <option value="">선택하세요</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>곡 제목 *</label>
+          <input type="text" class="form-input" id="up-title" placeholder="예) 엘리제를 위하여">
+        </div>
+        <div class="form-row">
+          <label>작곡가</label>
+          <input type="text" class="form-input" id="up-composer" placeholder="예) 베토벤">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-row">
+            <label>난이도</label>
+            <select class="form-input" id="up-level">
+              <option value="">선택 안 함</option>
+              <option>입문</option><option>초급</option><option>중급</option><option>고급</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>설명</label>
+          <textarea class="form-input" id="up-desc" rows="3" placeholder="악보에 대한 설명, 출처, 연습 팁 등을 적어주세요"></textarea>
+        </div>
+        <div class="form-row">
+          <label>태그 (쉼표로 구분)</label>
+          <input type="text" class="form-input" id="up-tags" placeholder="예) 클래식, 연습곡, 피아노">
+        </div>
+        <div class="form-row">
+          <label>유튜브 링크</label>
+          <input type="text" class="form-input" id="up-youtube" placeholder="https://youtube.com/watch?v=...">
+        </div>
+
+        <div class="form-row">
+          <label>블로그 / 공식 게시글 링크</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" class="form-input" id="up-blog" placeholder="https://blog.naver.com/... 또는 티스토리, 카페 등" style="flex:1;">
+            <button type="button" onclick="addBlogLink()" style="padding:8px 14px;border-radius:var(--radius-sm);background:transparent;border:1px solid var(--border2);color:var(--text2);cursor:pointer;font-size:12px;font-family:'Pretendard',sans-serif;white-space:nowrap;transition:all 0.12s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">+ 추가</button>
+          </div>
+          <div id="blog-links-list" style="display:flex;flex-direction:column;gap:6px;margin-top:8px;"></div>
+          <div style="font-size:11px;color:var(--text3);margin-top:6px;">💡 네이버 블로그, 티스토리, 카페, 공식 홈페이지 등 여러 개 추가 가능</div>
+        </div>
+
+        <!-- 악기별 파일 업로드 -->
+        <div class="form-row">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <label style="margin:0;">악기별 악보 파일</label>
+            <button type="button" onclick="addInstrumentPart()" style="font-size:12px;padding:4px 12px;border-radius:20px;background:transparent;border:1px solid var(--border2);color:var(--accent);cursor:pointer;font-family:'Pretendard',sans-serif;">+ 악기 추가</button>
+          </div>
+          <div id="instrument-parts-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+          <input type="file" id="part-file-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="partFileChosen(this)">
+          <div style="margin-top:8px;font-size:11px;color:var(--text3);">💡 각 악기별로 파일을 따로 올릴 수 있어요 · 파일당 700KB 이하 (Storage 승인 전 임시 제한)</div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:1rem;">
+          <button class="btn btn-accent" style="flex:1;padding:12px;" onclick="submitPost()">올리기</button>
+          <button class="btn btn-outline" style="padding:12px 20px;" onclick="goHome()">취소</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <div class="page" id="page-admin">
+    <div style="padding:1.5rem;max-width:760px;">
+      <button class="back-btn" onclick="goHome()">← 뒤로</button>
+
+      <div style="font-family:'Nanum Myeongjo',serif;font-size:24px;font-weight:700;margin-bottom:4px;">👑 관리자 설정</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:1.5rem;">관리자는 카테고리 수정, 게시물 삭제, 회원 관리 권한을 가져요.</div>
+
+      <!-- 현재 관리자 목록 -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem;margin-bottom:1rem;box-shadow:var(--shadow);">
+        <div style="font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:1rem;">현재 관리자</div>
+        <div id="admin-list"></div>
+      </div>
+
+      <!-- 이메일로 관리자 추가 -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem;margin-bottom:1rem;box-shadow:var(--shadow);">
+        <div style="font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;">이메일로 관리자 추가</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <input type="email" class="form-input" id="add-admin-email" placeholder="추가할 회원 이메일" style="flex:1;">
+          <input type="text" class="form-input" id="add-admin-name" placeholder="이름 (선택)" style="width:130px;">
+          <button class="btn btn-accent" onclick="addAdminByEmail()">추가</button>
+        </div>
+        <div style="font-size:12px;color:var(--text3);">💡 해당 이메일로 가입한 회원이 다음 로그인 시 관리자 권한을 갖게 돼요.</div>
+      </div>
+
+      <!-- UID로 관리자 추가 -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem;margin-bottom:1rem;box-shadow:var(--shadow);">
+        <div style="font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;">UID로 관리자 추가</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <input type="text" class="form-input" id="add-admin-uid" placeholder="Firebase UID" style="flex:1;">
+          <input type="text" class="form-input" id="add-admin-uid-name" placeholder="이름 (선택)" style="width:130px;">
+          <button class="btn btn-accent" onclick="addAdminByUid()">추가</button>
+        </div>
+        <div style="font-size:12px;color:var(--text3);">
+          💡 내 UID 확인: 로그인 후 콘솔(F12)에서 <code style="background:var(--bg2);padding:1px 6px;border-radius:4px;font-size:11px;">window._me.uid</code> 입력
+        </div>
+      </div>
+
+      <!-- 내 정보 -->
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem 1.4rem;">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em;">내 계정 정보</div>
+        <div id="my-info" style="font-size:13px;color:var(--text2);line-height:2;font-family:monospace;"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+    <div style="padding:1.5rem;">
+      <button class="back-btn" onclick="goHome()">← 뒤로</button>
+      <div style="display:flex;gap:8px;margin-bottom:1.5rem;">
+        <input class="search-input" id="search-q" placeholder="검색어 입력..." onkeydown="if(event.key==='Enter')runSearch()" style="flex:1;">
+        <button class="btn btn-accent" onclick="runSearch()">검색</button>
+      </div>
+      <div id="search-results"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Category Manage Modal -->
+<div class="modal-overlay" id="cat-modal">
+  <div class="modal" style="width:460px;">
+    <div class="modal-title">⚙ 카테고리 관리</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:1.2rem;">드래그로 순서를 바꾸고, 추가/삭제할 수 있어요.<br>변경사항은 모든 사용자에게 반영됩니다.</div>
+
+    <div id="cat-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:1.2rem;"></div>
+
+    <div style="display:flex;gap:8px;margin-bottom:1.2rem;">
+      <input type="text" id="new-cat-input" class="form-input" placeholder="새 카테고리 이름" style="flex:1;" onkeydown="if(event.key==='Enter')addCategory()">
+      <button class="btn btn-accent" onclick="addCategory()">+ 추가</button>
+    </div>
+
+    <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;color:var(--text3);margin-bottom:1.2rem;">
+      💡 '전체'는 삭제할 수 없어요. 카테고리를 삭제해도 기존 악보는 유지됩니다.
+    </div>
+
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-accent" style="flex:1;padding:10px;" onclick="saveCatChanges()">저장하기</button>
+      <button class="btn btn-outline" style="padding:10px 16px;" onclick="document.getElementById('cat-modal').classList.remove('open')">취소</button>
+    </div>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="modal-overlay" id="auth-modal">
+  <div class="modal">
+    <div class="modal-title">👋 환영해요</div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="tab-login" onclick="switchAuthTab('login')">로그인</button>
+      <button class="modal-tab" id="tab-signup" onclick="switchAuthTab('signup')">회원가입</button>
+    </div>
+
+    <!-- 이메일 폼 -->
+    <div id="auth-email-form">
+      <div class="form-row" id="signup-name-row" style="display:none;">
+        <label>닉네임</label>
+        <input type="text" class="form-input" id="auth-name" placeholder="사용할 닉네임">
+      </div>
+      <div class="form-row">
+        <label>이메일</label>
+        <input type="email" class="form-input" id="auth-email" placeholder="your@email.com">
+      </div>
+      <div class="form-row">
+        <label>비밀번호</label>
+        <input type="password" class="form-input" id="auth-pw" placeholder="6자 이상" onkeydown="if(event.key==='Enter')doAuth()">
+      </div>
+      <button class="btn btn-accent" style="width:100%;padding:12px;margin-bottom:8px;" onclick="doAuth()" id="auth-submit-btn">로그인</button>
+    </div>
+
+    <div class="divider">또는</div>
+    <button class="google-btn" onclick="googleLogin()">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Google로 계속하기
+    </button>
+    <button class="modal-close" onclick="document.getElementById('auth-modal').classList.remove('open')">닫기</button>
+  </div>
+</div>
+
+<!-- PWA 설치 배너 -->
+<div id="pwa-install-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:300;background:var(--surface);border-top:1px solid var(--border);padding:12px 16px 12px;align-items:center;gap:12px;box-shadow:0 -4px 20px rgba(0,0,0,0.1);">
+  <img src="./icon-192.png" style="width:40px;height:40px;border-radius:10px;flex-shrink:0;" alt="아이콘">
+  <div style="flex:1;min-width:0;">
+    <div style="font-size:14px;font-weight:600;color:var(--text);">악보마당 앱 설치</div>
+    <div style="font-size:12px;color:var(--text2);">홈 화면에 추가해서 앱처럼 사용하세요</div>
+  </div>
+  <button onclick="installPWA()" style="padding:8px 16px;border-radius:20px;background:var(--accent);border:none;color:white;font-size:13px;font-weight:500;cursor:pointer;font-family:'Pretendard',sans-serif;white-space:nowrap;">설치</button>
+  <button onclick="dismissInstallBanner()" style="padding:8px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;flex-shrink:0;">×</button>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<script>
+// 스크립트 로딩 전 클릭 방지용 안전 스텁
+window.goHome = function() { location.reload(); };
+window.showSearchPage = function() {};
+window.openCatManage = function() {};
+window.showAdminPage = function() {};
+window.openAuth = function() {};
+
+if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── DATA ──
+let CATEGORIES = JSON.parse(localStorage.getItem('sk_cats')||'null') || ['전체','클래식','찬송가','CCM','팝','재즈','동요','민요','기타'];
+let currentCat = '전체';
+let currentSort = 'latest';
+// ── BLOG LINKS ──
+let blogLinks = []; // [{url, label, type}]
+
+function detectBlogType(url) {
+  if (!url) return { label: '링크', icon: '🔗', type: 'link' };
+  if (url.includes('blog.naver.com')) return { label: '네이버 블로그', icon: '🟢', type: 'naver' };
+  if (url.includes('cafe.naver.com'))  return { label: '네이버 카페',  icon: '🟢', type: 'naver-cafe' };
+  if (url.includes('tistory.com'))     return { label: '티스토리',     icon: '🟠', type: 'tistory' };
+  if (url.includes('wordpress.com') || url.includes('wordpress.org')) return { label: '워드프레스', icon: '🔵', type: 'wordpress' };
+  if (url.includes('instagram.com'))   return { label: '인스타그램',   icon: '🟣', type: 'instagram' };
+  if (url.includes('facebook.com'))    return { label: '페이스북',     icon: '🔵', type: 'facebook' };
+  if (url.includes('youtube.com') || url.includes('youtu.be')) return { label: '유튜브', icon: '🔴', type: 'youtube' };
+  return { label: '공식 링크', icon: '🔗', type: 'link' };
+}
+
+function addBlogLink() {
+  const url = document.getElementById('up-blog').value.trim();
+  if (!url) { showToast('링크를 입력해주세요', 'error'); return; }
+  if (!url.startsWith('http')) { showToast('http:// 또는 https://로 시작하는 링크를 입력해주세요', 'error'); return; }
+  if (blogLinks.some(b => b.url === url)) { showToast('이미 추가된 링크예요', 'error'); return; }
+  const meta = detectBlogType(url);
+  blogLinks.push({ url, label: meta.label, icon: meta.icon, type: meta.type });
+  document.getElementById('up-blog').value = '';
+  renderBlogLinksList();
+}
+
+function removeBlogLink(idx) {
+  blogLinks.splice(idx, 1);
+  renderBlogLinksList();
+}
+
+function renderBlogLinksList() {
+  const el = document.getElementById('blog-links-list');
+  if (!el) return;
+  el.innerHTML = blogLinks.map((b, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);">
+      <span style="font-size:16px;flex-shrink:0;">${b.icon}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:500;color:var(--text);">${b.label}</div>
+        <div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.url}</div>
+      </div>
+      <a href="${b.url}" target="_blank" style="font-size:11px;padding:3px 8px;border-radius:6px;background:var(--accent-bg);color:var(--accent);border:1px solid rgba(184,92,42,0.2);text-decoration:none;flex-shrink:0;">열기</a>
+      <button onclick="removeBlogLink(${i})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:2px 4px;flex-shrink:0;" onmouseover="this.style.color='#c0392b'" onmouseout="this.style.color='var(--text3)'">×</button>
+    </div>
+  `).join('');
+}
+const INSTRUMENTS_LIST = ['피아노','바이올린','첼로','비올라','플루트','오보에','클라리넷','트럼펫','호른','어쿠스틱기타','일렉기타','베이스기타','드럼','보컬','합창','오르간','타악기','기타 악기'];
+const INST_ICONS = {
+  '피아노':'🎹','바이올린':'🎻','첼로':'🎻','비올라':'🎻',
+  '플루트':'🪈','오보에':'🎵','클라리넷':'🎵',
+  '트럼펫':'🎺','호른':'📯',
+  '어쿠스틱기타':'🪕','일렉기타':'🎸','베이스기타':'🔉',
+  '드럼':'🥁','타악기':'🪘',
+  '보컬':'🎤','합창':'🎤','오르간':'🎹','기타 악기':'🎵'
+};
+function iicon(n){ return INST_ICONS[n]||'🎵'; }
+
+// 악보 유형
+const SCORE_TYPES = [
+  { value: 'part',      label: '파트보',    desc: '특정 악기 파트만',  icon: '🎵' },
+  { value: 'lead',      label: '단선악보',  desc: '멜로디+코드',       icon: '🎼' },
+  { value: 'full',      label: '총보',      desc: '모든 파트 합본',    icon: '📖' },
+  { value: 'vocal',     label: '보컬보',    desc: '가사+멜로디',       icon: '🎤' },
+  { value: 'chord',     label: '코드보',    desc: '코드 진행표',       icon: '🎸' },
+  { value: 'other',     label: '기타',      desc: '기타 형식',         icon: '📄' },
+];
+function stypeIcon(v){ return SCORE_TYPES.find(t=>t.value===v)?.icon||'📄'; }
+function stypeLabel(v){ return SCORE_TYPES.find(t=>t.value===v)?.label||v; }
+
+let instrumentParts = []; // [{id, instrument, scoreType, fileName, fileData, fileType}]
+let activePartId = null;
+
+function addInstrumentPart() {
+  const id = 'ip_' + Date.now();
+  instrumentParts.push({ id, instrument: '피아노', scoreType: 'part', fileName: '', fileData: null, fileType: null });
+  renderInstrumentParts();
+}
+
+function removeInstrumentPart(id) {
+  instrumentParts = instrumentParts.filter(p => p.id !== id);
+  renderInstrumentParts();
+}
+
+function renderInstrumentParts() {
+  const list = document.getElementById('instrument-parts-list');
+  if (!list) return;
+  if (instrumentParts.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:1.5rem;border:2px dashed var(--border2);border-radius:var(--radius);cursor:pointer;color:var(--text3);" onclick="addInstrumentPart()">
+      <div style="font-size:28px;margin-bottom:6px;">🎼</div>
+      <div style="font-size:13px;">+ 악기 파트 추가</div>
+    </div>`;
+    return;
+  }
+  list.innerHTML = instrumentParts.map(p => `
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;">
+
+      <!-- 1행: 악기 선택 + 삭제 -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:20px;flex-shrink:0;">${iicon(p.instrument)}</span>
+        <select onchange="updatePartInstrument('${p.id}',this.value)" style="flex:1;padding:7px 10px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface);font-size:13px;font-family:'Pretendard',sans-serif;color:var(--text);outline:none;">
+          ${INSTRUMENTS_LIST.map(i=>`<option value="${i}" ${i===p.instrument?'selected':''}>${iicon(i)} ${i}</option>`).join('')}
+        </select>
+        <button onclick="removeInstrumentPart('${p.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:2px 6px;flex-shrink:0;" onmouseover="this.style.color='#c0392b'" onmouseout="this.style.color='var(--text3)'">×</button>
+      </div>
+
+      <!-- 2행: 악보 유형 선택 -->
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
+        ${SCORE_TYPES.map(t=>`
+          <button onclick="updatePartScoreType('${p.id}','${t.value}')"
+            title="${t.desc}"
+            style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:500;border:1px solid ${p.scoreType===t.value?'var(--accent)':'var(--border)'};background:${p.scoreType===t.value?'var(--accent-bg)':'transparent'};color:${p.scoreType===t.value?'var(--accent)':'var(--text2)'};cursor:pointer;font-family:'Pretendard',sans-serif;transition:all 0.1s;white-space:nowrap;">
+            ${t.icon} ${t.label}
+          </button>`).join('')}
+      </div>
+
+      <!-- 3행: 파일 선택 + 미리보기 -->
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button onclick="triggerPartFile('${p.id}')" style="flex:1;padding:8px 12px;border-radius:var(--radius-sm);border:2px dashed ${p.fileData?'var(--accent)':'var(--border2)'};background:${p.fileData?'var(--accent-bg)':'transparent'};color:${p.fileData?'var(--accent)':'var(--text3)'};cursor:pointer;font-size:12px;font-family:'Pretendard',sans-serif;text-align:left;transition:all 0.12s;">
+          ${p.fileData ? `📄 ${p.fileName}` : '+ 파일 선택 (PDF / 이미지)'}
+        </button>
+        ${p.fileData ? `<button onclick="previewPartFile('${p.id}')" style="padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-size:12px;font-family:'Pretendard',sans-serif;white-space:nowrap;">👁 미리보기</button>` : ''}
+      </div>
+      ${p.sizeWarn ? `<div style="margin-top:6px;font-size:11px;color:#c0392b;">⚠ ${p.sizeWarn}</div>` : ''}
+      ${p.sizeOk ? `<div style="margin-top:6px;font-size:11px;color:var(--green);">✓ ${p.sizeOk}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function updatePartInstrument(id, val) {
+  const p = instrumentParts.find(x=>x.id===id);
+  if (p) { p.instrument = val; renderInstrumentParts(); }
+}
+
+function updatePartScoreType(id, val) {
+  const p = instrumentParts.find(x=>x.id===id);
+  if (p) { p.scoreType = val; renderInstrumentParts(); }
+}
+
+function triggerPartFile(id) {
+  activePartId = id;
+  document.getElementById('part-file-input').click();
+}
+
+function partFileChosen(input) {
+  if (!input.files[0] || !activePartId) return;
+  const f = input.files[0];
+  const p = instrumentParts.find(x=>x.id===activePartId);
+  if (!p) return;
+  const sizeBytes = f.size;
+  if (sizeBytes > 700*1024) {
+    p.sizeWarn = `파일 크기 ${Math.round(sizeBytes/1024)}KB — 700KB 초과, 저장 불가`;
+    p.sizeOk = null;
+    renderInstrumentParts();
+    input.value=''; return;
+  }
+  p.fileName = f.name;
+  p.fileType = f.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'img';
+  p.sizeWarn = null;
+  p.sizeOk = `${Math.round(sizeBytes/1024)}KB / 700KB — 저장 가능`;
+  const reader = new FileReader();
+  reader.onload = e => {
+    p.fileData = e.target.result;
+    renderInstrumentParts();
+  };
+  reader.readAsDataURL(f);
+  input.value='';
+}
+
+// 미리보기 모달
+let previewPartModal = null;
+function previewPartFile(id) {
+  const p = instrumentParts.find(x=>x.id===id);
+  if (!p?.fileData) return;
+  // 간단한 오버레이 미리보기
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  overlay.onclick = () => overlay.remove();
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border-radius:var(--radius);padding:1rem;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;';
+  box.onclick = e => e.stopPropagation();
+  box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+    <div style="font-size:14px;font-weight:600;">${iicon(p.instrument)} ${p.instrument} — ${p.fileName}</div>
+    <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2);">×</button>
+  </div>
+  <div id="preview-content-${id}" style="text-align:center;min-height:200px;"></div>`;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  const content = document.getElementById('preview-content-' + id);
+  if (p.fileType === 'img') {
+    content.innerHTML = `<img src="${p.fileData}" style="max-width:100%;border-radius:4px;">`;
+  } else if (p.fileType === 'pdf' && window.pdfjsLib) {
+    const canvas = document.createElement('canvas');
+    canvas.style.maxWidth = '100%';
+    content.appendChild(canvas);
+    pdfjsLib.getDocument(p.fileData).promise.then(doc => doc.getPage(1).then(page => {
+      const vp = page.getViewport({scale:1.2});
+      canvas.width=vp.width; canvas.height=vp.height;
+      const maxW=620; if(vp.width>maxW){const r=maxW/vp.width;canvas.style.width=maxW+'px';canvas.style.height=(vp.height*r)+'px';}
+      page.render({canvasContext:canvas.getContext('2d'),viewport:vp});
+    }));
+  }
+}
+
+function dropOver(e,on) {
+  e.preventDefault();
+}
+function dropFile(e) { e.preventDefault(); }
+let currentPostId = null;
+
+// Sample data for demo (used when Firebase not configured)
+const DEMO_POSTS = [
+  { id:'d1', title:'엘리제를 위하여', composer:'베토벤', category:'클래식', instrument:'피아노', level:'초급', desc:'베토벤의 유명한 소품곡입니다. 초보자도 도전해볼 수 있어요!', tags:['피아노','클래식','연습곡'], author:'음악사랑', authorId:'u1', likes:24, likedBy:[], comments:3, createdAt: new Date('2024-03-10'), hasFile:false },
+  { id:'d2', title:'Amazing Grace', composer:'John Newton', category:'찬송가', instrument:'합창', level:'초급', desc:'가장 유명한 찬송가 중 하나입니다. 합창 편곡 버전이에요.', tags:['찬송가','합창','은혜'], author:'찬양드림', authorId:'u2', likes:18, likedBy:[], comments:5, createdAt: new Date('2024-04-01'), hasFile:false },
+  { id:'d3', title:'봄날', composer:'BTS', category:'팝', instrument:'피아노', level:'중급', desc:'BTS 봄날 피아노 편곡 악보입니다.', tags:['팝','BTS','피아노'], author:'피아노연주자', authorId:'u3', likes:41, likedBy:[], comments:8, createdAt: new Date('2024-04-15'), hasFile:false },
+  { id:'d4', title:'할렐루야', composer:'Handel', category:'CCM', instrument:'오케스트라', level:'고급', desc:'헨델 메시아 중 할렐루야 합창입니다.', tags:['CCM','합창','헨델'], author:'성가대장', authorId:'u4', likes:33, likedBy:[], comments:2, createdAt: new Date('2024-05-01'), hasFile:false },
+];
+let demoPosts = [...DEMO_POSTS];
+
+// ── 관리자 설정 (이메일 추가 가능) ──
+const ADMIN_EMAILS = []; // 코드로 지정할 고정 관리자 이메일
+let adminList = JSON.parse(localStorage.getItem('sk_admins') || '[]');
+// adminList: [{uid, email, name, addedAt}]
+
+async function loadAdmins() {
+  if (window._fb) {
+    try {
+      const snap = await window._fb.getDoc(window._fb.doc(window._fb.db, 'settings', 'admins'));
+      if (snap.exists() && snap.data().list) {
+        adminList = snap.data().list;
+        localStorage.setItem('sk_admins', JSON.stringify(adminList));
+      }
+    } catch(e) {}
+  }
+  // 첫 로그인 사용자를 자동 관리자로 등록
+  if (adminList.length === 0 && window._me) {
+    const first = { uid: window._me.uid, email: window._me.email||'', name: window._me.displayName||'관리자', addedAt: new Date().toISOString() };
+    adminList.push(first);
+    await saveAdmins();
+  }
+}
+
+async function saveAdmins() {
+  localStorage.setItem('sk_admins', JSON.stringify(adminList));
+  if (window._fb) {
+    try {
+      await window._fb.setDoc(window._fb.doc(window._fb.db, 'settings', 'admins'), { list: adminList, updatedAt: window._fb.serverTimestamp() });
+    } catch(e) {}
+  }
+}
+
+function isAdmin() {
+  if (!window._me) return false;
+  if (ADMIN_EMAILS.includes(window._me.email)) return true;
+  return adminList.some(a => a.uid === window._me.uid || (a.email && a.email === window._me.email));
+}
+
+// ── INIT ──
+async function init() {
+  await loadCategories();
+  await loadAdmins();
+  renderNavCats();
+  renderCatTabs();
+  renderSidebarCats();
+  loadPosts();
+  updateAuthUI(window._me);
+}
+
+async function loadCategories() {
+  if (window._fb) {
+    try {
+      const snap = await window._fb.getDoc(window._fb.doc(window._fb.db, 'settings', 'categories'));
+      if (snap.exists() && snap.data().list) {
+        CATEGORIES = snap.data().list;
+        localStorage.setItem('sk_cats', JSON.stringify(CATEGORIES));
+      }
+    } catch(e) {}
+  }
+}
+
+async function saveCategories() {
+  localStorage.setItem('sk_cats', JSON.stringify(CATEGORIES));
+  if (window._fb) {
+    try {
+      await window._fb.setDoc(window._fb.doc(window._fb.db, 'settings', 'categories'), { list: CATEGORIES, updatedAt: window._fb.serverTimestamp() });
+    } catch(e) { showToast('클라우드 저장 실패: ' + e.message, 'error'); }
+  }
+}
+
+// ── AUTH UI ──
+let authMode = 'login';
+function updateAuthUI(user) {
+  const el = document.getElementById('nav-auth');
+  if (!el) return;
+  // show/hide category manage button
+  const catBtn = document.getElementById('cat-manage-btn');
+  const adminBtn = document.getElementById('admin-page-btn');
+  const adminMode = user && isAdmin();
+  if (catBtn) catBtn.style.display = adminMode ? 'inline-block' : 'none';
+  if (adminBtn) adminBtn.style.display = adminMode ? 'inline-block' : 'none';
+  if (user) {
+    const name = user.displayName || user.email?.split('@')[0] || '회원';
+    const initial = name[0].toUpperCase();
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="btn btn-accent" onclick="startUpload()" style="font-size:12px;padding:5px 12px;">+ 올리기</button>
+        <div onclick="handleUserClick()" style="width:34px;height:34px;border-radius:50%;background:var(--accent-bg);border:1px solid rgba(184,92,42,0.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--accent);cursor:pointer;" title="${name} — 클릭하여 로그아웃">${user.photoURL ? `<img src="${user.photoURL}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : initial}</div>
+      </div>`;
+  } else {
+    el.innerHTML = `<button class="btn btn-outline" onclick="openAuth()" style="font-size:13px;">로그인</button>`;
+  }
+}
+
+function openAuth() { document.getElementById('auth-modal').classList.add('open'); switchAuthTab('login'); }
+function switchAuthTab(mode) {
+  authMode = mode;
+  document.getElementById('tab-login').classList.toggle('active', mode==='login');
+  document.getElementById('tab-signup').classList.toggle('active', mode==='signup');
+  document.getElementById('signup-name-row').style.display = mode==='signup' ? 'block' : 'none';
+  document.getElementById('auth-submit-btn').textContent = mode==='login' ? '로그인' : '회원가입';
+}
+
+// Firebase 모듈 로딩 대기 (최대 5초)
+function waitForFb(timeout=5000) {
+  return new Promise((resolve, reject) => {
+    if (window._fb) { resolve(window._fb); return; }
+    const start = Date.now();
+    const check = setInterval(() => {
+      if (window._fb) { clearInterval(check); resolve(window._fb); }
+      else if (Date.now() - start > timeout) { clearInterval(check); reject(new Error('Firebase 초기화 시간 초과')); }
+    }, 100);
+  });
+}
+
+async function doAuth() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pw = document.getElementById('auth-pw').value;
+  if (!email || !pw) { showToast('이메일과 비밀번호를 입력해주세요', 'error'); return; }
+  try {
+    const fb = await waitForFb();
+    if (authMode === 'login') {
+      await fb.signInWithEmailAndPassword(fb.auth, email, pw);
+      showToast('✓ 로그인됐습니다!', 'success');
+    } else {
+      const name = document.getElementById('auth-name').value.trim() || '회원';
+      const cred = await fb.createUserWithEmailAndPassword(fb.auth, email, pw);
+      await fb.updateProfile(cred.user, { displayName: name });
+      window._me = cred.user;
+      showToast('✓ 가입됐습니다! 환영해요 🎼', 'success');
+    }
+    document.getElementById('auth-modal').classList.remove('open');
+  } catch(e) {
+    const msgs = {
+      'auth/email-already-in-use':'이미 사용 중인 이메일이에요',
+      'auth/wrong-password':'비밀번호가 틀렸어요',
+      'auth/invalid-credential':'이메일 또는 비밀번호가 올바르지 않아요',
+      'auth/user-not-found':'가입되지 않은 이메일이에요',
+      'auth/weak-password':'비밀번호는 6자 이상이어야 해요'
+    };
+    showToast(msgs[e.code] || '오류: ' + e.message, 'error');
+  }
+}
+
+async function googleLogin() {
+  try {
+    const fb = await waitForFb();
+    const provider = new fb.GoogleAuthProvider();
+    await fb.signInWithPopup(fb.auth, provider);
+    document.getElementById('auth-modal').classList.remove('open');
+    showToast('✓ Google 로그인됐습니다!', 'success');
+  } catch(e) {
+    if (e.message === 'Firebase 초기화 시간 초과') {
+      showToast('Firebase 연결 중이에요. 잠시 후 다시 시도해주세요.', 'error');
+    } else {
+      showToast('로그인 실패: ' + e.message, 'error');
+    }
+  }
+}
+
+async function handleUserClick() {
+  const fb = await waitForFb().catch(()=>null);
+  if (!fb) return;
+  if (confirm((window._me?.displayName || '사용자') + '님, 로그아웃 할까요?')) {
+    fb.signOut(fb.auth);
+    showToast('로그아웃됐습니다', 'success');
+  }
+}
+
+// ── NAV / CATS ──
+function renderNavCats() {
+  document.getElementById('nav-cats').innerHTML = CATEGORIES.map(c =>
+    `<button class="nav-cat-btn ${c===currentCat?'active':''}" onclick="selectCat('${c}')">${c}</button>`
+  ).join('');
+}
+
+function renderCatTabs() {
+  document.getElementById('cat-tabs').innerHTML = CATEGORIES.map(c =>
+    `<button onclick="selectCat('${c}')" style="padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid ${c===currentCat?'var(--accent)':'var(--border)'};background:${c===currentCat?'var(--accent-bg)':'transparent'};color:${c===currentCat?'var(--accent)':'var(--text2)'};cursor:pointer;font-family:'Pretendard',sans-serif;transition:all 0.12s;">${c}</button>`
+  ).join('');
+}
+
+function renderSidebarCats() {
+  document.getElementById('sidebar-cats').innerHTML = CATEGORIES.slice(1).map(c =>
+    `<div class="side-item" onclick="selectCat('${c}')"><span>${c}</span></div>`
+  ).join('');
+}
+
+function renderNavCatUpload() {
+  const sel = document.getElementById('up-cat');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">선택하세요</option>' + CATEGORIES.slice(1).map(c=>`<option>${c}</option>`).join('');
+}
+
+function selectCat(cat) {
+  currentCat = cat;
+  renderNavCats(); renderCatTabs(); renderSidebarCats();
+  loadPosts();
+}
+
+function setSort(mode) {
+  currentSort = mode;
+  document.getElementById('sort-latest').style.background = mode==='latest' ? 'var(--accent-bg)' : '';
+  document.getElementById('sort-latest').style.borderColor = mode==='latest' ? 'var(--accent)' : '';
+  document.getElementById('sort-latest').style.color = mode==='latest' ? 'var(--accent)' : '';
+  document.getElementById('sort-likes').style.background = mode==='likes' ? 'var(--accent-bg)' : '';
+  document.getElementById('sort-likes').style.borderColor = mode==='likes' ? 'var(--accent)' : '';
+  document.getElementById('sort-likes').style.color = mode==='likes' ? 'var(--accent)' : '';
+  loadPosts();
+}
+
+// ── LOAD POSTS ──
+async function loadPosts() {
+  document.getElementById('posts-loading').style.display = 'flex';
+  document.getElementById('posts-list').innerHTML = '';
+  document.getElementById('posts-empty').style.display = 'none';
+  let posts = [];
+  if (window._fb) {
+    try {
+      const db = window._fb.db;
+      let q = window._fb.query(window._fb.collection(db,'posts'), window._fb.orderBy('createdAt','desc'), window._fb.limit(30));
+      const snap = await window._fb.getDocs(q);
+      snap.forEach(d => posts.push({id:d.id,...d.data()}));
+      if (currentCat !== '전체') posts = posts.filter(p=>p.category===currentCat);
+      if (currentSort === 'likes') posts.sort((a,b)=>(b.likes||0)-(a.likes||0));
+    } catch(e) { posts = getFilteredDemo(); }
+  } else {
+    await new Promise(r=>setTimeout(r,300));
+    posts = getFilteredDemo();
+  }
+  document.getElementById('posts-loading').style.display = 'none';
+  document.getElementById('post-count-label').textContent = `${posts.length}개의 악보`;
+  if (!posts.length) { document.getElementById('posts-empty').style.display='block'; return; }
+  document.getElementById('posts-list').innerHTML = posts.map(renderPostCard).join('');
+  renderSidebarHot(posts);
+}
+
+function getFilteredDemo() {
+  let list = [...demoPosts];
+  if (currentCat !== '전체') list = list.filter(p=>p.category===currentCat);
+  if (currentSort === 'likes') list.sort((a,b)=>b.likes-a.likes);
+  else list.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  return list;
+}
+
+function renderPostCard(p) {
+  const tags = (p.tags||[]).map(t=>`<span class="post-tag">${t}</span>`).join('');
+  const date = p.createdAt?.toDate ? p.createdAt.toDate().toLocaleDateString('ko') : (p.createdAt ? new Date(p.createdAt).toLocaleDateString('ko') : '');
+  const instruments = p.instruments || (p.instrument ? [p.instrument] : []);
+  const instIcons = instruments.slice(0,4).map(i=>iicon(i)).join('');
+  const partCount = (p.parts||[]).length;
+  return `<div class="post-card" onclick="openPost('${p.id}')">
+    <div class="post-card-inner">
+      <div class="post-thumb" style="min-height:120px;">
+        <div class="post-thumb-placeholder">
+          <div class="post-thumb-icon">${instIcons||'🎼'}</div>
+          <span style="font-size:10px;color:var(--text3);">${partCount>0?partCount+'개 파트':''}</span>
+        </div>
+      </div>
+      <div class="post-body">
+        <div class="post-cat">${p.category||''}</div>
+        <div class="post-title">${p.title}</div>
+        <div class="post-desc">${p.desc||''}</div>
+        <div class="post-tags">
+          ${instruments.map(i=>`<span class="post-tag">${iicon(i)} ${i}</span>`).join('')}
+          ${tags}
+        </div>
+        <div class="post-meta">
+          <span>👤 ${p.author||'익명'}</span>
+          ${p.level?`<span>📊 ${p.level}</span>`:''}
+          <span>❤ ${p.likes||0}</span>
+          <span>💬 ${p.comments||0}</span>
+          ${date?`<span>📅 ${date}</span>`:''}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderSidebarHot(posts) {
+  const hot = [...posts].sort((a,b)=>(b.likes||0)-(a.likes||0)).slice(0,5);
+  document.getElementById('sidebar-hot').innerHTML = hot.map((p,i)=>
+    `<div class="side-item" onclick="openPost('${p.id}')">
+      <span style="font-size:11px;color:var(--text3);min-width:16px;">${i+1}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.title}</span>
+      ${i===0?`<span class="hot-badge">HOT</span>`:''}
+      <span class="side-num">❤ ${p.likes||0}</span>
+    </div>`
+  ).join('');
+}
+
+// ── POST DETAIL ──
+async function openPost(id) {
+  currentPostId = id;
+  showPage('detail');
+  document.getElementById('detail-content').innerHTML = '<div class="loading"><div class="spinner"></div> 불러오는 중...</div>';
+  document.getElementById('comment-section').innerHTML = '';
+  let post = null;
+  if (window._fb) {
+    try {
+      const snap = await window._fb.getDoc(window._fb.doc(window._fb.db,'posts',id));
+      if (snap.exists()) post = {id:snap.id,...snap.data()};
+    } catch(e) {}
+  }
+  if (!post) post = demoPosts.find(p=>p.id===id);
+  if (!post) { document.getElementById('detail-content').innerHTML='<p>게시물을 찾을 수 없어요.</p>'; return; }
+  currentDetailPost = post;
+  renderDetail(post);
+  loadComments(id, post);
+  loadRelated(post.category, id);
+  // load first part PDF if exists
+  if (post.parts && post.parts.length > 0 && post.parts[0].fileData && post.parts[0].fileType==='pdf') {
+    loadDetailPDF(post.parts[0].fileData);
+  } else if (post.fileURL && post.fileType==='pdf') {
+    loadDetailPDF(post.fileURL);
+  }
+}
+
+function renderDetail(p) {
+  const myId = window._me?.uid;
+  const liked = (p.likedBy||[]).includes(myId);
+  const date = p.createdAt?.toDate ? p.createdAt.toDate().toLocaleDateString('ko') : (p.createdAt ? new Date(p.createdAt).toLocaleDateString('ko') : '');
+  const tags = (p.tags||[]).map(t=>`<span class="post-tag">${t}</span>`).join('');
+  const ytId = extractYtId(p.youtube||'');
+  document.getElementById('detail-content').innerHTML = `
+    <div class="detail-cat">${p.category||''} ${p.instrument?'· '+p.instrument:''} ${p.level?'· '+p.level:''}</div>
+    <div class="detail-title">${p.title}</div>
+    <div class="detail-author-row">
+      <div class="avatar">${(p.author||'?')[0].toUpperCase()}</div>
+      <div>
+        <div style="font-size:13px;font-weight:600;">${p.author||'익명'}</div>
+        <div style="font-size:11px;color:var(--text3);">${date}</div>
+      </div>
+    </div>
+    ${p.desc?`<div class="detail-body">${p.desc.replace(/\n/g,'<br>')}</div>`:''}
+    ${tags?`<div class="post-tags" style="margin-bottom:1rem;">${tags}</div>`:''}
+    ${(p.parts&&p.parts.length>0)?`
+    <div style="margin:1rem 0;">
+      <div style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">악기별 악보</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;" id="part-tab-row">
+        ${p.parts.map((pt,i)=>`<button onclick="switchPartTab(${i},'${p.id}')" id="ptab-${i}" style="padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid ${i===0?'var(--accent)':'var(--border)'};background:${i===0?'var(--accent-bg)':'transparent'};color:${i===0?'var(--accent)':'var(--text2)'};cursor:pointer;font-family:'Pretendard',sans-serif;transition:all 0.12s;display:flex;align-items:center;gap:4px;">
+            ${iicon(pt.instrument)} ${pt.instrument}
+            ${pt.scoreType&&pt.scoreType!=='part'?`<span style="font-size:9px;padding:1px 5px;border-radius:8px;background:rgba(0,0,0,0.08);color:inherit;">${stypeLabel(pt.scoreType)}</span>`:''}
+            ${!pt.fileData?'<span style="font-size:9px;opacity:0.5;">(파일없음)</span>':''}
+          </button>`).join('')}
+      </div>
+      <div id="part-viewer-wrap">
+        ${renderPartViewer(p.parts[0], 0)}
+      </div>
+    </div>`
+    : (p.fileURL?`
+      <div id="score-viewer-wrap">
+        <div class="score-viewer">
+          <div class="viewer-toolbar">
+            <span style="font-size:12px;color:var(--text2);">🎼 악보 보기</span>
+            ${p.fileType==='pdf'?`
+              <button onclick="pdfPrev()">◀</button>
+              <span id="pdf-pg" style="font-size:11px;color:var(--text2);">1/1</span>
+              <button onclick="pdfNext()">▶</button>
+              <button onclick="pdfZoom(-0.2)">−</button>
+              <button onclick="pdfZoom(0.2)">+</button>`:''}
+            <a href="${p.fileURL}" download style="margin-left:auto;font-size:11px;padding:4px 10px;border-radius:6px;background:var(--accent-bg);color:var(--accent);border:1px solid rgba(184,92,42,0.2);">⬇ 다운로드</a>
+          </div>
+          <div style="padding:12px;background:var(--bg2);min-height:200px;display:flex;align-items:center;justify-content:center;">
+            ${p.fileType==='img'?`<img src="${p.fileURL}" style="max-width:100%;border-radius:4px;" alt="악보">`:`<canvas id="detail-canvas"></canvas>`}
+          </div>
+        </div>
+      </div>`:'')}
+    ${ytId?`<div style="margin:1rem 0;border-radius:var(--radius-sm);overflow:hidden;aspect-ratio:16/9;">
+      <iframe width="100%" height="100%" src="https://www.youtube.com/embed/${ytId}" frameborder="0" allowfullscreen style="display:block;"></iframe>
+    </div>`:''}
+    ${(p.blogLinks&&p.blogLinks.length>0)?`
+    <div style="margin:1rem 0;">
+      <div style="font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">📎 관련 링크</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${p.blogLinks.map(b=>`
+          <a href="${b.url}" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);text-decoration:none;transition:all 0.12s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+            <span style="font-size:20px;flex-shrink:0;">${b.icon||'🔗'}</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:500;color:var(--text);">${b.label||'링크'}</div>
+              <div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.url}</div>
+            </div>
+            <span style="font-size:11px;color:var(--accent);flex-shrink:0;">열기 →</span>
+          </a>`).join('')}
+      </div>
+    </div>`:''}
+    <div class="detail-actions">
+      <button class="like-btn ${liked?'liked':''}" onclick="toggleLike('${p.id}')">
+        ${liked?'❤':'🤍'} 좋아요 <span id="like-count">${p.likes||0}</span>
+      </button>
+      ${(p.parts&&p.parts.some(pt=>pt.fileData))?`
+        <button onclick="downloadAllParts('${p.id}')" style="display:flex;align-items:center;gap:6px;padding:7px 16px;border-radius:20px;background:var(--accent);border:none;color:white;font-size:13px;font-weight:500;cursor:pointer;font-family:'Pretendard',sans-serif;transition:all 0.12s;" onmouseover="this.style.background='var(--accent2)'" onmouseout="this.style.background='var(--accent)'">
+          ⬇ 전체 다운로드
+        </button>`:''}
+      ${myId===p.authorId?`<button class="btn btn-outline" onclick="deletePost('${p.id}')" style="font-size:12px;border-color:rgba(200,50,50,0.3);color:#c0392b;">삭제</button>`:''}
+    </div>
+
+    ${(p.parts&&p.parts.filter(pt=>pt.fileData).length>0)?`
+    <div style="margin-top:1rem;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;">
+      <div style="padding:10px 14px;font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid var(--border);">⬇ 파트별 다운로드</div>
+      ${p.parts.filter(pt=>pt.fileData).map(pt=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--border);">
+          <span style="font-size:18px;flex-shrink:0;">${iicon(pt.instrument)}</span>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:500;color:var(--text);">${pt.instrument}</div>
+            <div style="font-size:11px;color:var(--text3);">${stypeIcon(pt.scoreType||'part')} ${stypeLabel(pt.scoreType||'part')} · ${pt.fileName||''} · ${pt.fileType?.toUpperCase()||''}</div>
+          </div>
+          <a href="${pt.fileData}" download="${pt.fileName||pt.instrument+'.'+pt.fileType}" style="padding:6px 14px;border-radius:20px;background:var(--accent-bg);color:var(--accent);border:1px solid rgba(184,92,42,0.2);font-size:12px;font-weight:500;text-decoration:none;flex-shrink:0;transition:all 0.12s;" onmouseover="this.style.background='rgba(184,92,42,0.15)'" onmouseout="this.style.background='var(--accent-bg)'">⬇ 다운로드</a>
+        </div>`).join('')}
+    </div>`:''}
+`;
+  if (p.fileURL && p.fileType==='pdf') loadDetailPDF(p.fileURL);
+}
+
+// ── DOWNLOAD ──
+function downloadAllParts(postId) {
+  const post = currentDetailPost || demoPosts.find(p=>p.id===postId);
+  if (!post) return;
+  const parts = (post.parts||[]).filter(pt=>pt.fileData);
+  if (parts.length === 0) { showToast('다운로드할 파일이 없어요', 'error'); return; }
+  if (parts.length === 1) {
+    // 단일 파일은 바로 다운로드
+    triggerDownload(parts[0].fileData, parts[0].fileName||parts[0].instrument+'.'+parts[0].fileType);
+    showToast('⬇ 다운로드 시작!', 'success');
+    return;
+  }
+  // 여러 파일은 순차 다운로드 (브라우저 제한으로 ZIP 대신)
+  showToast(`⬇ ${parts.length}개 파일 다운로드 시작...`, 'success');
+  parts.forEach((pt, i) => {
+    setTimeout(() => {
+      triggerDownload(pt.fileData, pt.fileName || `${post.title}_${pt.instrument}.${pt.fileType}`);
+    }, i * 500); // 0.5초 간격으로 순차 다운로드
+  });
+}
+
+function triggerDownload(dataURL, filename) {
+  const a = document.createElement('a');
+  a.href = dataURL;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function renderPartViewer(pt, idx) {
+  if (!pt) return '';
+  const typeBadge = pt.scoreType ? `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--accent-bg);color:var(--accent);border:1px solid rgba(184,92,42,0.2);margin-left:6px;">${stypeIcon(pt.scoreType)} ${stypeLabel(pt.scoreType)}</span>` : '';
+  if (!pt.fileData) return `<div style="text-align:center;padding:2rem;color:var(--text3);font-size:13px;background:var(--bg2);border-radius:var(--radius-sm);">${iicon(pt.instrument)} ${pt.instrument} ${typeBadge}<br><br>파일 없음</div>`;
+  const dlBtn = `<a href="${pt.fileData}" download="${pt.fileName||pt.instrument+'.'+pt.fileType}" style="font-size:11px;padding:4px 10px;border-radius:6px;background:var(--accent-bg);color:var(--accent);border:1px solid rgba(184,92,42,0.2);text-decoration:none;margin-left:auto;">⬇ 다운로드</a>`;
+  const header = `<div class="viewer-toolbar"><span style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;">${iicon(pt.instrument)} ${pt.instrument}${typeBadge}</span>`;
+  if (pt.fileType==='img') {
+    return `<div class="score-viewer">${header}${dlBtn}</div><div style="padding:12px;background:var(--bg2);"><img src="${pt.fileData}" style="max-width:100%;border-radius:4px;" alt="${pt.instrument}"></div></div>`;
+  } else if (pt.fileType==='pdf') {
+    return `<div class="score-viewer">${header}<button onclick="pdfPrev()">◀</button><span id="pdf-pg" style="font-size:11px;color:var(--text2);">1/1</span><button onclick="pdfNext()">▶</button><button onclick="pdfZoom(-0.2)">−</button><button onclick="pdfZoom(0.2)">+</button>${dlBtn}</div><div style="padding:12px;background:var(--bg2);min-height:200px;display:flex;align-items:center;justify-content:center;"><canvas id="detail-canvas"></canvas></div></div>`;
+  }
+  return '';
+}
+
+let currentDetailPost = null;
+function switchPartTab(idx, postId) {
+  if (!currentDetailPost) return;
+  const parts = currentDetailPost.parts || [];
+  const pt = parts[idx];
+  // update tab styles
+  parts.forEach((_,i) => {
+    const btn = document.getElementById('ptab-'+i);
+    if (!btn) return;
+    btn.style.borderColor = i===idx ? 'var(--accent)' : 'var(--border)';
+    btn.style.background = i===idx ? 'var(--accent-bg)' : 'transparent';
+    btn.style.color = i===idx ? 'var(--accent)' : 'var(--text2)';
+  });
+  document.getElementById('part-viewer-wrap').innerHTML = renderPartViewer(pt, idx);
+  detailPdf=null; detailPage=1; detailScale=1.2;
+  if (pt?.fileData && pt.fileType==='pdf' && window.pdfjsLib) loadDetailPDF(pt.fileData);
+}
+async function loadDetailPDF(url) {
+  if (!window.pdfjsLib) return;
+  try {
+    detailPdf = await pdfjsLib.getDocument(url).promise;
+    detailPage=1;
+    renderDetailPdfPage();
+  } catch(e) {}
+}
+async function renderDetailPdfPage() {
+  if (!detailPdf) return;
+  const page = await detailPdf.getPage(detailPage);
+  const canvas = document.getElementById('detail-canvas');
+  if (!canvas) return;
+  const vp = page.getViewport({scale:detailScale});
+  canvas.width=vp.width; canvas.height=vp.height;
+  const maxW = canvas.parentElement?.clientWidth - 24 || 600;
+  if (vp.width > maxW) { const r=maxW/vp.width; canvas.style.width=maxW+'px'; canvas.style.height=(vp.height*r)+'px'; }
+  page.render({canvasContext:canvas.getContext('2d'),viewport:vp});
+  const el = document.getElementById('pdf-pg');
+  if (el) el.textContent = `${detailPage}/${detailPdf.numPages}`;
+}
+function pdfPrev(){if(detailPdf&&detailPage>1){detailPage--;renderDetailPdfPage();}}
+function pdfNext(){if(detailPdf&&detailPage<detailPdf.numPages){detailPage++;renderDetailPdfPage();}}
+function pdfZoom(d){detailScale=Math.min(3,Math.max(0.5,detailScale+d));renderDetailPdfPage();}
+
+async function toggleLike(postId) {
+  if (!window._me) { openAuth(); return; }
+  const myId = window._me.uid;
+  if (window._fb) {
+    const ref = window._fb.doc(window._fb.db,'posts',postId);
+    const snap = await window._fb.getDoc(ref);
+    if (!snap.exists()) return;
+    const data = snap.data();
+    const liked = (data.likedBy||[]).includes(myId);
+    await window._fb.updateDoc(ref, {
+      likes: window._fb.increment(liked?-1:1),
+      likedBy: liked ? window._fb.arrayRemove(myId) : window._fb.arrayUnion(myId)
+    });
+    const newCount = (data.likes||0) + (liked?-1:1);
+    document.getElementById('like-count').textContent = newCount;
+    document.querySelector('.like-btn').classList.toggle('liked', !liked);
+    document.querySelector('.like-btn').textContent = (liked?'🤍':'❤') + ' 좋아요 ';
+    document.querySelector('.like-btn').innerHTML = `${liked?'🤍':'❤'} 좋아요 <span id="like-count">${newCount}</span>`;
+  } else {
+    const post = demoPosts.find(p=>p.id===postId);
+    if (!post) return;
+    const liked = (post.likedBy||[]).includes(myId);
+    post.likes = (post.likes||0) + (liked?-1:1);
+    if (liked) post.likedBy = post.likedBy.filter(x=>x!==myId);
+    else (post.likedBy=post.likedBy||[]).push(myId);
+    document.querySelector('.like-btn').classList.toggle('liked', !liked);
+    document.querySelector('.like-btn').innerHTML = `${liked?'🤍':'❤'} 좋아요 <span id="like-count">${post.likes}</span>`;
+  }
+}
+
+async function deletePost(postId) {
+  if (!confirm('이 악보를 삭제할까요?')) return;
+  if (window._fb) {
+    try { await window._fb.deleteDoc(window._fb.doc(window._fb.db,'posts',postId)); } catch(e){}
+  } else {
+    demoPosts = demoPosts.filter(p=>p.id!==postId);
+  }
+  showToast('삭제됐습니다', 'success');
+  goHome();
+}
+
+// ── COMMENTS ──
+async function loadComments(postId, post) {
+  const section = document.getElementById('comment-section');
+  let comments = [];
+  if (window._fb) {
+    try {
+      const q = window._fb.query(window._fb.collection(window._fb.db,'posts',postId,'comments'), window._fb.orderBy('createdAt','asc'));
+      const snap = await window._fb.getDocs(q);
+      snap.forEach(d => comments.push({id:d.id,...d.data()}));
+    } catch(e) {}
+  }
+  section.innerHTML = `
+    <div class="comment-title">💬 댓글 ${comments.length}개</div>
+    <div class="comment-input-wrap">
+      <textarea class="comment-input" id="cmt-input" placeholder="${window._me?'댓글을 남겨보세요...':'로그인 후 댓글을 달 수 있어요'}"></textarea>
+      <button class="btn btn-accent" onclick="submitComment('${postId}')" style="align-self:flex-end;padding:10px 16px;">등록</button>
+    </div>
+    <div id="cmt-list">${comments.map(renderComment).join('') || '<div style="text-align:center;padding:1.5rem;color:var(--text3);font-size:13px;">아직 댓글이 없어요. 첫 댓글을 남겨보세요!</div>'}</div>`;
+}
+
+function renderComment(c) {
+  const date = c.createdAt?.toDate ? c.createdAt.toDate().toLocaleDateString('ko') : '';
+  return `<div class="comment-item">
+    <div class="avatar" style="width:30px;height:30px;font-size:12px;">${(c.author||'?')[0].toUpperCase()}</div>
+    <div class="comment-body">
+      <div class="comment-name">${c.author||'익명'}</div>
+      <div class="comment-text">${c.text}</div>
+      <div class="comment-time">${date}</div>
+    </div>
+  </div>`;
+}
+
+async function submitComment(postId) {
+  if (!window._me) { openAuth(); return; }
+  const text = document.getElementById('cmt-input')?.value.trim();
+  if (!text) { showToast('댓글 내용을 입력해주세요', 'error'); return; }
+  const comment = { text, author: window._me.displayName||'회원', authorId: window._me.uid, createdAt: new Date() };
+  if (window._fb) {
+    try {
+      await window._fb.addDoc(window._fb.collection(window._fb.db,'posts',postId,'comments'), { ...comment, createdAt: window._fb.serverTimestamp() });
+      await window._fb.updateDoc(window._fb.doc(window._fb.db,'posts',postId), { comments: window._fb.increment(1) });
+    } catch(e) { showToast('댓글 등록 실패', 'error'); return; }
+  }
+  document.getElementById('cmt-input').value='';
+  const list = document.getElementById('cmt-list');
+  if (list) list.innerHTML += renderComment(comment);
+  showToast('댓글이 등록됐습니다', 'success');
+}
+
+// ── RELATED ──
+async function loadRelated(category, excludeId) {
+  let posts = [];
+  if (window._fb) {
+    try {
+      const q = window._fb.query(window._fb.collection(window._fb.db,'posts'), window._fb.where('category','==',category), window._fb.limit(5));
+      const snap = await window._fb.getDocs(q);
+      snap.forEach(d => { if(d.id!==excludeId) posts.push({id:d.id,...d.data()}); });
+    } catch(e) {}
+  } else {
+    posts = demoPosts.filter(p=>p.category===category&&p.id!==excludeId).slice(0,4);
+  }
+  document.getElementById('related-posts').innerHTML = posts.slice(0,4).map(p =>
+    `<div class="side-item" onclick="openPost('${p.id}')"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.title}</span><span class="side-num">❤ ${p.likes||0}</span></div>`
+  ).join('') || '<div style="font-size:12px;color:var(--text3);padding:4px 0;">관련 악보가 없어요</div>';
+}
+
+// ── UPLOAD ──
+function startUpload() {
+  if (!window._me) { openAuth(); return; }
+  showPage('upload');
+  renderNavCatUpload();
+  blogLinks = [];
+  renderBlogLinksList();
+  instrumentParts = [];
+  activePartId = null;
+  ['up-title','up-composer','up-desc','up-tags','up-youtube','up-blog'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const lv=document.getElementById('up-level'); if(lv) lv.value='';
+  addInstrumentPart(); // 기본 1개 추가
+}
+
+function dropOver(e,on) {
+  e.preventDefault();
+  document.getElementById('up-drop').classList.toggle('over',on);
+}
+function dropFile(e) {
+  e.preventDefault();
+  document.getElementById('up-drop').classList.remove('over');
+  const f=e.dataTransfer.files[0];
+  if(f) processUploadFile(f);
+}
+function fileChosen(input) {
+  if(input.files[0]) processUploadFile(input.files[0]);
+  input.value='';
+}
+
+function processUploadFile(f) {
+  document.getElementById('up-file-label').textContent='✓ '+f.name;
+  const n=f.name.toLowerCase();
+  uploadFileType=n.endsWith('.pdf')?'pdf':'img';
+
+  // 파일 크기 표시
+  const sizeEl=document.getElementById('up-file-size');
+  const sizeKB=Math.round(f.size/1024);
+  const sizeMB=(f.size/1024/1024).toFixed(2);
+  const isOver=f.size>700*1024;
+  sizeEl.style.display='block';
+  sizeEl.style.background=isOver?'rgba(192,57,43,0.08)':'rgba(42,122,74,0.08)';
+  sizeEl.style.color=isOver?'#c0392b':'#2a7a4a';
+  sizeEl.style.border=`1px solid ${isOver?'rgba(192,57,43,0.2)':'rgba(42,122,74,0.2)'}`;
+  sizeEl.textContent=isOver
+    ? `⚠ 파일 크기: ${sizeMB}MB — 1MB를 초과해서 저장할 수 없어요`
+    : `✓ 파일 크기: ${sizeKB}KB / 700KB — 저장 가능`;
+
+  const reader=new FileReader();
+  reader.onload=e=>{
+    uploadFileData=e.target.result;
+    document.getElementById('up-preview-wrap').style.display='block';
+    const canvas=document.getElementById('up-canvas');
+    const img=document.getElementById('up-img');
+    canvas.style.display='none'; img.style.display='none';
+    if(uploadFileType==='img'){img.src=uploadFileData;img.style.display='block';}
+    else if(window.pdfjsLib){
+      canvas.style.display='block';
+      pdfjsLib.getDocument(uploadFileData).promise.then(doc=>doc.getPage(1).then(page=>{
+        const vp=page.getViewport({scale:0.8});
+        canvas.width=vp.width;canvas.height=vp.height;
+        const maxW=500;if(vp.width>maxW){const r=maxW/vp.width;canvas.style.width=maxW+'px';canvas.style.height=(vp.height*r)+'px';}
+        page.render({canvasContext:canvas.getContext('2d'),viewport:vp});
+      }));
+    }
+  };
+  reader.readAsDataURL(f);
+}
+
+async function submitPost() {
+  const title=document.getElementById('up-title').value.trim();
+  const cat=document.getElementById('up-cat').value;
+  if(!title){showToast('제목을 입력해주세요','error');return;}
+  if(!cat){showToast('카테고리를 선택해주세요','error');return;}
+  if(!window._me){openAuth();return;}
+
+  // 파일 크기 체크
+  const oversized = instrumentParts.filter(p=>p.fileData && Math.round(p.fileData.length*0.75)>700*1024);
+  if(oversized.length>0){showToast('1MB를 초과하는 파일이 있어요. 파일을 교체해주세요.','error');return;}
+
+  const tags=document.getElementById('up-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+
+  // parts 배열 구성 (fileData 포함)
+  const parts = instrumentParts.map(p=>({
+    id: p.id,
+    instrument: p.instrument,
+    scoreType: p.scoreType || 'part',
+    fileName: p.fileName||'',
+    fileType: p.fileType||null,
+    fileData: p.fileData||null
+  }));
+
+  // 대표 악기 목록 (카드 표시용)
+  const instruments = [...new Set(instrumentParts.map(p=>p.instrument))];
+
+  const post={
+    title, category:cat,
+    composer:document.getElementById('up-composer').value.trim(),
+    instruments,
+    level:document.getElementById('up-level').value,
+    desc:document.getElementById('up-desc').value.trim(),
+    youtube:document.getElementById('up-youtube').value.trim(),
+    blogLinks: [...blogLinks],
+    tags, likes:0, likedBy:[], comments:0,
+    author:window._me.displayName||'회원',
+    authorId:window._me.uid,
+    parts, // 악기별 파일 포함
+    storageMode:'base64',
+    createdAt:new Date()
+  };
+
+  if(window._fb){
+    try{
+      showToast('업로드 중...','');
+      post.createdAt=window._fb.serverTimestamp();
+      const docRef=await window._fb.addDoc(window._fb.collection(window._fb.db,'posts'),post);
+      post.id=docRef.id;
+      showToast('✓ 악보가 올라갔어요!','success');
+      goHome();
+    }catch(e){
+      if(e.code==='invalid-argument'||e.message.includes('larger than')||e.message.includes('exceeds')){
+        showToast('파일 용량 초과 — 파일을 700KB 이하로 줄이거나 Storage 크레딧 승인 후 다시 시도해주세요.','error');
+      } else {
+        showToast('업로드 실패: '+e.message,'error');
+      }
+    }
+  }else{
+    post.id='demo_'+Date.now();
+    demoPosts.unshift(post);
+    showToast('✓ 악보가 올라갔어요! (데모)','success');
+    goHome();
+  }
+}
+
+// ── CATEGORY MANAGE ──
+let editCats = [];
+let dragIdx = null;
+
+function openCatManage() {
+  if (!isAdmin()) { showToast('관리자만 수정할 수 있어요', 'error'); return; }
+  editCats = [...CATEGORIES];
+  renderCatList();
+  document.getElementById('new-cat-input').value = '';
+  document.getElementById('cat-modal').classList.add('open');
+}
+
+function renderCatList() {
+  document.getElementById('cat-list').innerHTML = editCats.map((c, i) => `
+    <div id="cat-item-${i}" draggable="true"
+      ondragstart="dragIdx=${i};this.style.opacity='0.4'"
+      ondragend="this.style.opacity='1'"
+      ondragover="event.preventDefault()"
+      ondrop="dropCat(event,${i})"
+      style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:grab;transition:all 0.1s;">
+      <span style="color:var(--text3);font-size:14px;cursor:grab;">⠿</span>
+      <span style="flex:1;font-size:14px;color:${c==='전체'?'var(--text3)':'var(--text)'};">${c}</span>
+      ${c === '전체'
+        ? `<span style="font-size:11px;color:var(--text3);padding:2px 8px;border-radius:10px;background:var(--border);">고정</span>`
+        : `<button onclick="editCatName(${i})" style="font-size:11px;padding:3px 8px;border-radius:6px;background:transparent;border:1px solid var(--border);color:var(--text2);cursor:pointer;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">수정</button>
+           <button onclick="deleteCat(${i})" style="font-size:11px;padding:3px 8px;border-radius:6px;background:transparent;border:1px solid rgba(192,57,43,0.2);color:#c0392b;cursor:pointer;">삭제</button>`
+      }
+    </div>
+  `).join('');
+}
+
+function dropCat(e, toIdx) {
+  e.preventDefault();
+  if (dragIdx === null || dragIdx === toIdx) return;
+  if (dragIdx === 0 || toIdx === 0) return; // '전체' 이동 불가
+  const moved = editCats.splice(dragIdx, 1)[0];
+  editCats.splice(toIdx, 0, moved);
+  dragIdx = null;
+  renderCatList();
+}
+
+function addCategory() {
+  const name = document.getElementById('new-cat-input').value.trim();
+  if (!name) { showToast('카테고리 이름을 입력해주세요', 'error'); return; }
+  if (editCats.includes(name)) { showToast('이미 있는 카테고리예요', 'error'); return; }
+  editCats.push(name);
+  document.getElementById('new-cat-input').value = '';
+  renderCatList();
+}
+
+function editCatName(idx) {
+  const cur = editCats[idx];
+  const name = prompt('카테고리 이름 수정:', cur);
+  if (!name || name.trim() === cur) return;
+  if (editCats.includes(name.trim())) { showToast('이미 있는 카테고리예요', 'error'); return; }
+  editCats[idx] = name.trim();
+  renderCatList();
+}
+
+function deleteCat(idx) {
+  if (editCats[idx] === '전체') return;
+  if (!confirm(`'${editCats[idx]}' 카테고리를 삭제할까요?\n기존 악보는 유지됩니다.`)) return;
+  editCats.splice(idx, 1);
+  renderCatList();
+}
+
+async function saveCatChanges() {
+  if (editCats.length < 2) { showToast('최소 1개 이상의 카테고리가 필요해요', 'error'); return; }
+  CATEGORIES = [...editCats];
+  await saveCategories();
+  if (currentCat !== '전체' && !CATEGORIES.includes(currentCat)) currentCat = '전체';
+  renderNavCats(); renderCatTabs(); renderSidebarCats(); renderNavCatUpload();
+  document.getElementById('cat-modal').classList.remove('open');
+  showToast('✓ 카테고리가 저장됐습니다!', 'success');
+}
+// ── ADMIN PAGE ──
+function showAdminPage() {
+  if (!isAdmin()) { showToast('관리자만 접근할 수 있어요', 'error'); return; }
+  showPage('admin');
+  renderAdminList();
+  renderMyInfo();
+}
+
+function renderAdminList() {
+  const el = document.getElementById('admin-list');
+  if (!el) return;
+  if (adminList.length === 0) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--text3);padding:8px 0;">등록된 관리자가 없어요.</div>';
+    return;
+  }
+  el.innerHTML = adminList.map((a, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--border);">
+      <div style="width:36px;height:36px;border-radius:50%;background:var(--accent-bg);border:1px solid rgba(184,92,42,0.2);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--accent);flex-shrink:0;">
+        ${(a.name||'?')[0].toUpperCase()}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:14px;font-weight:500;color:var(--text);">
+          ${a.name||'이름 없음'}
+          ${a.uid===window._me?.uid?'<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:var(--accent-bg);color:var(--accent);margin-left:6px;">나</span>':''}
+        </div>
+        ${a.email?`<div style="font-size:11px;color:var(--text3);">${a.email}</div>`:''}
+        <div style="font-size:10px;color:var(--text3);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">UID: ${a.uid||'이메일로 지정됨'}</div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);flex-shrink:0;">${a.addedAt?a.addedAt.slice(0,10):''}</div>
+      ${a.uid!==window._me?.uid?`
+        <button onclick="removeAdmin(${i})" style="font-size:11px;padding:4px 10px;border-radius:6px;background:transparent;border:1px solid rgba(192,57,43,0.25);color:#c0392b;cursor:pointer;font-family:'Pretendard',sans-serif;flex-shrink:0;"
+          onmouseover="this.style.background='rgba(192,57,43,0.06)'" onmouseout="this.style.background='transparent'">해제</button>
+      `:'<span style="font-size:11px;color:var(--text3);padding:4px 10px;flex-shrink:0;">본인</span>'}
+    </div>
+  `).join('') + `<div style="font-size:12px;color:var(--text3);padding-top:10px;">총 ${adminList.length}명</div>`;
+}
+
+function renderMyInfo() {
+  const el = document.getElementById('my-info');
+  if (!el || !window._me) return;
+  el.innerHTML = `
+    <div>이름: ${window._me.displayName||'없음'}</div>
+    <div>이메일: ${window._me.email||'없음'}</div>
+    <div>UID: <b style="color:var(--accent);user-select:all;">${window._me.uid}</b></div>
+    <div>관리자 여부: ${isAdmin()?'✅ 관리자':'❌ 일반 회원'}</div>
+  `;
+}
+
+async function addAdminByEmail() {
+  const email = document.getElementById('add-admin-email').value.trim();
+  const name = document.getElementById('add-admin-name').value.trim();
+  if (!email) { showToast('이메일을 입력해주세요', 'error'); return; }
+  if (adminList.some(a => a.email === email)) { showToast('이미 관리자로 등록된 이메일이에요', 'error'); return; }
+  adminList.push({ uid: '', email, name: name||email.split('@')[0], addedAt: new Date().toISOString() });
+  await saveAdmins();
+  document.getElementById('add-admin-email').value = '';
+  document.getElementById('add-admin-name').value = '';
+  renderAdminList();
+  showToast(`✓ ${email} 관리자로 추가됐어요!`, 'success');
+}
+
+async function addAdminByUid() {
+  const uid = document.getElementById('add-admin-uid').value.trim();
+  const name = document.getElementById('add-admin-uid-name').value.trim();
+  if (!uid) { showToast('UID를 입력해주세요', 'error'); return; }
+  if (adminList.some(a => a.uid === uid)) { showToast('이미 관리자로 등록된 UID예요', 'error'); return; }
+  adminList.push({ uid, email: '', name: name||'관리자', addedAt: new Date().toISOString() });
+  await saveAdmins();
+  document.getElementById('add-admin-uid').value = '';
+  document.getElementById('add-admin-uid-name').value = '';
+  renderAdminList();
+  showToast('✓ 관리자로 추가됐어요!', 'success');
+}
+
+async function removeAdmin(idx) {
+  const a = adminList[idx];
+  if (a.uid === window._me?.uid) { showToast('본인 관리자 권한은 해제할 수 없어요', 'error'); return; }
+  if (!confirm(`'${a.name||a.email}' 님의 관리자 권한을 해제할까요?`)) return;
+  adminList.splice(idx, 1);
+  await saveAdmins();
+  renderAdminList();
+  showToast('관리자 권한이 해제됐습니다', 'success');
+}
+
+// ── STORAGE 마이그레이션 (크레딧 승인 후 실행) ──
+// Firestore에 Base64로 저장된 파일들을 Storage로 이전합니다
+async function migrateToStorage() {
+  if(!window._fb||!window._me){console.log('로그인 필요');return;}
+  if(!window._fb.stor){console.log('Storage 미설정');return;}
+  console.log('Storage 마이그레이션 시작...');
+  const snap=await window._fb.getDocs(window._fb.collection(window._fb.db,'posts'));
+  let count=0;
+  for(const d of snap.docs){
+    const p=d.data();
+    if(p.storageMode==='base64'&&p.fileURL&&p.fileURL.startsWith('data:')){
+      try{
+        const storRef=window._fb.ref(window._fb.stor,`posts/${d.id}`);
+        await window._fb.uploadString(storRef,p.fileURL,'data_url');
+        const url=await window._fb.getDownloadURL(storRef);
+        await window._fb.updateDoc(window._fb.doc(window._fb.db,'posts',d.id),{fileURL:url,storageMode:'storage'});
+        count++;
+        console.log(`✓ ${p.title} 마이그레이션 완료 (${count}번째)`);
+      }catch(e){console.error(`✗ ${p.title} 실패:`,e.message);}
+    }
+  }
+  console.log(`마이그레이션 완료: ${count}개 파일 이전됨`);
+}
+window.migrateToStorage=migrateToStorage;
+
+// ── SEARCH ──
+function showSearchPage(){showPage('search');document.getElementById('search-q').focus();}
+function doSearch(){const q=document.getElementById('home-search').value.trim();if(q){showPage('search');document.getElementById('search-q').value=q;runSearch();}}
+async function runSearch(){
+  const q=document.getElementById('search-q').value.trim().toLowerCase();
+  if(!q)return;
+  let results=[];
+  if(window._fb){
+    try{
+      const snap=await window._fb.getDocs(window._fb.query(window._fb.collection(window._fb.db,'posts'),window._fb.orderBy('createdAt','desc'),window._fb.limit(50)));
+      snap.forEach(d=>{const p={id:d.id,...d.data()};if(p.title?.toLowerCase().includes(q)||p.composer?.toLowerCase().includes(q)||(p.tags||[]).some(t=>t.toLowerCase().includes(q)))results.push(p);});
+    }catch(e){}
+  }else{
+    results=demoPosts.filter(p=>p.title.toLowerCase().includes(q)||p.composer?.toLowerCase().includes(q)||(p.tags||[]).some(t=>t.toLowerCase().includes(q)));
+  }
+  document.getElementById('search-results').innerHTML=results.length
+    ?`<div style="font-size:13px;color:var(--text3);margin-bottom:1rem;">"${q}" 검색 결과 ${results.length}개</div>`+results.map(renderPostCard).join('')
+    :`<div class="empty"><div class="empty-icon">🔍</div><p>"${q}"에 대한 결과가 없어요</p></div>`;
+}
+
+// ── PAGE ROUTING ──
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  window.scrollTo(0,0);
+}
+function goHome(){currentPostId=null;showPage('home');loadPosts();}
+
+// ── UTILS ──
+function extractYtId(url){const m=url.match(/(?:youtu\.be\/|watch\?v=|shorts\/)([a-zA-Z0-9_-]{11})/);return m?m[1]:null;}
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast '+(type?type:'')+' show';
+  setTimeout(()=>t.className='toast',2800);
+}
+
+// ── BOOT ──
+setTimeout(init, 100);
+
+// ── PWA: Service Worker 등록 ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('[PWA] Service Worker 등록됨:', reg.scope))
+      .catch(err => console.warn('[PWA] Service Worker 등록 실패:', err));
+  });
+}
+
+// ── PWA: 설치 배너 ──
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  showInstallBanner();
+});
+
+function showInstallBanner() {
+  // 이미 설치됐으면 표시 안 함
+  if (window.matchMedia('(display-mode: standalone)').matches) return;
+  const banner = document.getElementById('pwa-install-banner');
+  if (banner) banner.style.display = 'flex';
+}
+
+function installPWA() {
+  const banner = document.getElementById('pwa-install-banner');
+  if (banner) banner.style.display = 'none';
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(choice => {
+    if (choice.outcome === 'accepted') showToast('✓ 홈 화면에 설치됐어요!', 'success');
+    deferredPrompt = null;
+  });
+}
+
+function dismissInstallBanner() {
+  const banner = document.getElementById('pwa-install-banner');
+  if (banner) banner.style.display = 'none';
+  localStorage.setItem('pwa-banner-dismissed', Date.now());
+}
+
+// 이미 앱으로 열린 경우 배너 숨김
+window.addEventListener('appinstalled', () => {
+  const banner = document.getElementById('pwa-install-banner');
+  if (banner) banner.style.display = 'none';
+  showToast('✓ 앱이 설치됐어요!', 'success');
+});
+</script>
+</body>
+</html>

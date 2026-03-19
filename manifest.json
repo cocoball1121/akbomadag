@@ -1,0 +1,35 @@
+{
+  "name": "악보마당",
+  "short_name": "악보마당",
+  "description": "누구나 악보를 올리고 함께 나눠요",
+  "start_url": "./score-community.html",
+  "display": "standalone",
+  "background_color": "#faf8f4",
+  "theme_color": "#b85c2a",
+  "orientation": "any",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["music", "education"],
+  "shortcuts": [
+    {
+      "name": "악보 올리기",
+      "short_name": "올리기",
+      "description": "새 악보 업로드",
+      "url": "./score-community.html#upload",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
