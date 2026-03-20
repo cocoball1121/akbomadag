@@ -1802,51 +1802,156 @@ async function deletePost(postId) {
 }
 
 // ── COMMENTS ──
+let currentCommentPostId = null;
+let currentComments = [];
+
 async function loadComments(postId, post) {
+  currentCommentPostId = postId;
   const section = document.getElementById('comment-section');
-  let comments = [];
+  currentComments = [];
   if (window._fb) {
     try {
-      const q = window._fb.query(window._fb.collection(window._fb.db,'posts',postId,'comments'), window._fb.orderBy('createdAt','asc'));
+      const q = window._fb.query(
+        window._fb.collection(window._fb.db,'posts',postId,'comments'),
+        window._fb.orderBy('createdAt','asc')
+      );
       const snap = await window._fb.getDocs(q);
-      snap.forEach(d => comments.push({id:d.id,...d.data()}));
+      snap.forEach(d => currentComments.push({id:d.id,...d.data()}));
     } catch(e) {}
   }
-  section.innerHTML = `
-    <div class="comment-title">💬 댓글 ${comments.length}개</div>
-    <div class="comment-input-wrap">
-      <textarea class="comment-input" id="cmt-input" placeholder="${window._me?'댓글을 남겨보세요...':'로그인 후 댓글을 달 수 있어요'}"></textarea>
-      <button class="btn btn-accent" onclick="submitComment('${postId}')" style="align-self:flex-end;padding:10px 16px;">등록</button>
-    </div>
-    <div id="cmt-list">${comments.map(renderComment).join('') || '<div style="text-align:center;padding:1.5rem;color:var(--text3);font-size:13px;">아직 댓글이 없어요. 첫 댓글을 남겨보세요!</div>'}</div>`;
+  renderCommentSection(postId);
 }
 
-function renderComment(c) {
-  const date = c.createdAt?.toDate ? c.createdAt.toDate().toLocaleDateString('ko') : '';
-  return `<div class="comment-item">
-    <div class="avatar" style="width:30px;height:30px;font-size:12px;">${(c.author||'?')[0].toUpperCase()}</div>
-    <div class="comment-body">
-      <div class="comment-name">${c.author||'익명'}</div>
-      <div class="comment-text">${c.text}</div>
+function renderCommentSection(postId) {
+  const section = document.getElementById('comment-section');
+  if (!section) return;
+  section.innerHTML = `
+    <div class="comment-title">💬 댓글 ${currentComments.length}개</div>
+    <div class="comment-input-wrap">
+      <textarea class="comment-input" id="cmt-input" placeholder="${window._me?'댓글을 남겨보세요...':'로그인 후 댓글을 달 수 있어요'}" onkeydown="if(event.ctrlKey&&event.key==='Enter')submitComment('${postId}')"></textarea>
+      <button class="btn btn-accent" onclick="submitComment('${postId}')" style="align-self:flex-end;padding:10px 16px;touch-action:manipulation;">등록</button>
+    </div>
+    <div id="cmt-list">
+      ${currentComments.length
+        ? currentComments.map(c => renderComment(c, postId)).join('')
+        : '<div style="text-align:center;padding:1.5rem;color:var(--text3);font-size:13px;">아직 댓글이 없어요. 첫 댓글을 남겨보세요!</div>'}
+    </div>`;
+}
+
+function renderComment(c, postId) {
+  const date = c.createdAt?.toDate ? c.createdAt.toDate().toLocaleDateString('ko') : (c.createdAt ? new Date(c.createdAt).toLocaleDateString('ko') : '');
+  const myId = window._me?.uid;
+  const isMine = myId && c.authorId === myId;
+  const canDelete = isMine || isAdmin();
+  const pid = postId || currentCommentPostId;
+  return `<div class="comment-item" id="cmt-${c.id}">
+    <div class="avatar" style="width:30px;height:30px;font-size:12px;flex-shrink:0;">${(c.author||'?')[0].toUpperCase()}</div>
+    <div class="comment-body" style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div class="comment-name">${c.author||'익명'}</div>
+        <div style="display:flex;gap:4px;flex-shrink:0;">
+          ${isMine ? `<button onclick="startEditComment('${c.id}','${pid}')" style="font-size:11px;padding:2px 8px;border-radius:10px;background:transparent;border:1px solid var(--border);color:var(--text3);cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">수정</button>` : ''}
+          ${canDelete ? `<button onclick="deleteComment('${c.id}','${pid}')" style="font-size:11px;padding:2px 8px;border-radius:10px;background:transparent;border:1px solid var(--border);color:var(--text3);cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;" onmouseover="this.style.borderColor='#c0392b';this.style.color='#c0392b'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">삭제</button>` : ''}
+        </div>
+      </div>
+      <div class="comment-text" id="cmt-text-${c.id}">${c.text}</div>
       <div class="comment-time">${date}</div>
     </div>
   </div>`;
+}
+
+function startEditComment(commentId, postId) {
+  const textEl = document.getElementById('cmt-text-' + commentId);
+  if (!textEl) return;
+  const current = textEl.textContent;
+  textEl.outerHTML = `
+    <div id="cmt-edit-wrap-${commentId}" style="margin-top:4px;">
+      <textarea id="cmt-edit-${commentId}" style="width:100%;padding:8px 10px;border-radius:var(--radius-sm);border:1px solid var(--accent);background:var(--bg);font-size:13px;font-family:'Pretendard',sans-serif;outline:none;resize:vertical;min-height:52px;color:var(--text);">${current}</textarea>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <button onclick="saveEditComment('${commentId}','${postId}')" style="padding:5px 14px;border-radius:20px;background:var(--accent);border:none;color:white;font-size:12px;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">저장</button>
+        <button onclick="cancelEditComment('${commentId}','${current}')" style="padding:5px 12px;border-radius:20px;background:transparent;border:1px solid var(--border);color:var(--text2);font-size:12px;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">취소</button>
+      </div>
+    </div>`;
+  document.getElementById('cmt-edit-' + commentId)?.focus();
+}
+
+function cancelEditComment(commentId, original) {
+  const wrap = document.getElementById('cmt-edit-wrap-' + commentId);
+  if (!wrap) return;
+  wrap.outerHTML = `<div class="comment-text" id="cmt-text-${commentId}">${original}</div>`;
+}
+
+async function saveEditComment(commentId, postId) {
+  const input = document.getElementById('cmt-edit-' + commentId);
+  if (!input) return;
+  const newText = input.value.trim();
+  if (!newText) { showToast('댓글 내용을 입력해주세요', 'error'); return; }
+  if (window._fb) {
+    try {
+      await window._fb.updateDoc(
+        window._fb.doc(window._fb.db, 'posts', postId, 'comments', commentId),
+        { text: newText, editedAt: window._fb.serverTimestamp() }
+      );
+    } catch(e) { showToast('수정 실패: ' + e.message, 'error'); return; }
+  }
+  // 로컬 업데이트
+  const c = currentComments.find(x => x.id === commentId);
+  if (c) c.text = newText;
+  const wrap = document.getElementById('cmt-edit-wrap-' + commentId);
+  if (wrap) wrap.outerHTML = `<div class="comment-text" id="cmt-text-${commentId}">${newText} <span style="font-size:10px;color:var(--text3);">(수정됨)</span></div>`;
+  showToast('✓ 댓글이 수정됐습니다', 'success');
+}
+
+async function deleteComment(commentId, postId) {
+  if (!confirm('댓글을 삭제할까요?')) return;
+  if (window._fb) {
+    try {
+      await window._fb.deleteDoc(window._fb.doc(window._fb.db,'posts',postId,'comments',commentId));
+      await window._fb.updateDoc(window._fb.doc(window._fb.db,'posts',postId), { comments: window._fb.increment(-1) });
+    } catch(e) { showToast('삭제 실패: ' + e.message, 'error'); return; }
+  }
+  // 로컬 제거
+  currentComments = currentComments.filter(c => c.id !== commentId);
+  const el = document.getElementById('cmt-' + commentId);
+  if (el) el.remove();
+  // 댓글 수 업데이트
+  const title = document.querySelector('.comment-title');
+  if (title) title.textContent = `💬 댓글 ${currentComments.length}개`;
+  showToast('댓글이 삭제됐습니다', 'success');
 }
 
 async function submitComment(postId) {
   if (!window._me) { openAuth(); return; }
   const text = document.getElementById('cmt-input')?.value.trim();
   if (!text) { showToast('댓글 내용을 입력해주세요', 'error'); return; }
-  const comment = { text, author: window._me.displayName||'회원', authorId: window._me.uid, createdAt: new Date() };
+  const comment = {
+    text,
+    author: window._me.displayName||'회원',
+    authorId: window._me.uid,
+    createdAt: new Date()
+  };
   if (window._fb) {
     try {
-      await window._fb.addDoc(window._fb.collection(window._fb.db,'posts',postId,'comments'), { ...comment, createdAt: window._fb.serverTimestamp() });
+      const ref = await window._fb.addDoc(
+        window._fb.collection(window._fb.db,'posts',postId,'comments'),
+        { ...comment, createdAt: window._fb.serverTimestamp() }
+      );
+      comment.id = ref.id;
       await window._fb.updateDoc(window._fb.doc(window._fb.db,'posts',postId), { comments: window._fb.increment(1) });
     } catch(e) { showToast('댓글 등록 실패', 'error'); return; }
+  } else {
+    comment.id = 'local_' + Date.now();
   }
-  document.getElementById('cmt-input').value='';
+  document.getElementById('cmt-input').value = '';
+  currentComments.push(comment);
   const list = document.getElementById('cmt-list');
-  if (list) list.innerHTML += renderComment(comment);
+  if (list) {
+    // 빈 상태 메시지 제거
+    if (list.querySelector('div[style*="text-align:center"]')) list.innerHTML = '';
+    list.innerHTML += renderComment(comment, postId);
+  }
+  const title = document.querySelector('.comment-title');
+  if (title) title.textContent = `💬 댓글 ${currentComments.length}개`;
   showToast('댓글이 등록됐습니다', 'success');
 }
 
