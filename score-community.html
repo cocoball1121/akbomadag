@@ -196,27 +196,30 @@ nav {
 
 @media(max-width: 600px) {
   /* 전체 여백 */
-  body { padding-bottom: 68px; }
+  body { padding-bottom: 68px; overflow-x: hidden; }
 
   /* 상단 nav */
-  .nav-inner { padding: 0 1rem; height: 52px; gap: 8px; }
+  .nav-inner { padding: 0 0.75rem; height: 52px; gap: 6px; }
   .logo { font-size: 19px; }
-  .nav-cats { display: none; } /* 카테고리 탭으로 이동 */
+  .nav-cats { display: none; }
   #cat-manage-btn { display: none !important; }
-  #admin-page-btn { font-size: 11px; padding: 5px 8px; }
+  #admin-page-btn { display: none !important; }
+  /* 모바일에서 상단 올리기/관리자 버튼 숨김 (하단 탭 사용) */
+  .nav-right .btn-accent { display: none; }
   #nav-auth .btn-outline { font-size: 12px; padding: 6px 12px; min-height: 36px; }
 
   /* 하단 탭바 표시 */
   .mobile-tabbar { display: block; }
 
+  /* 페이지 패딩 */
+  #page-home > div { padding: 0.75rem !important; }
+  .layout { padding: 0 !important; }
+
   /* 히어로 영역 */
   .hero {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 1rem;
-    gap: 10px;
-    margin-bottom: 1rem;
-    border-radius: var(--radius-sm);
+    flex-direction: column; align-items: stretch;
+    padding: 1rem; gap: 10px;
+    margin-bottom: 0.75rem; border-radius: var(--radius-sm);
   }
   .hero-title { font-size: 17px; }
   .hero-sub { font-size: 12px; }
@@ -225,32 +228,33 @@ nav {
   .search-wrap .btn-accent { padding: 10px 16px; font-size: 13px; }
 
   /* 카테고리 탭 */
-  #cat-tabs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; gap: 6px; }
+  #cat-tabs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; gap: 5px; margin-bottom: 0.75rem; }
   #cat-tabs::-webkit-scrollbar { display: none; }
-  #cat-tabs button { flex-shrink: 0; font-size: 12px; padding: 6px 14px; }
+  #cat-tabs button { flex-shrink: 0; font-size: 12px; padding: 5px 12px; }
 
   /* 결과 헤더 */
   #post-count-label { font-size: 12px; }
   #sort-latest, #sort-likes { font-size: 11px; padding: 5px 10px; }
 
-  /* 악보 카드 */
-  .post-card { margin-bottom: 10px; border-radius: var(--radius-sm); }
-  .post-card-inner { display: flex; }
-  .post-thumb { width: 90px !important; min-height: 100px !important; flex-shrink: 0; }
-  .post-thumb-icon { font-size: 22px !important; }
-  .post-thumb-placeholder { padding: 0.5rem !important; }
-  .post-body { padding: 10px 12px 8px; }
+  /* 악보 카드 — 핵심 수정 */
+  .post-card { margin-bottom: 8px; border-radius: var(--radius-sm); overflow: hidden; }
+  .post-card-inner { display: flex; min-width: 0; }
+  .post-thumb { width: 80px !important; min-height: 90px !important; flex-shrink: 0; }
+  .post-thumb-icon { font-size: 20px !important; }
+  .post-thumb-placeholder { padding: 0.4rem !important; }
+  .post-body { flex: 1; min-width: 0; padding: 8px 10px 6px; overflow: hidden; }
   .post-cat { font-size: 10px; margin-bottom: 2px; }
-  .post-title { font-size: 14px; margin-bottom: 3px; }
-  .post-desc { font-size: 11px; margin-bottom: 6px; -webkit-line-clamp: 1; }
-  .post-tags { gap: 3px; margin-bottom: 5px; }
+  .post-title { font-size: 13px; margin-bottom: 2px; }
+  .post-desc { font-size: 11px; margin-bottom: 4px; -webkit-line-clamp: 1; }
+  .post-tags { gap: 3px; margin-bottom: 4px; flex-wrap: wrap; }
   .post-tag { font-size: 10px; padding: 1px 6px; }
-  .post-meta { font-size: 10px; gap: 6px; }
+  .post-meta { font-size: 10px; gap: 6px; flex-wrap: wrap; }
 
   /* 상세 화면 */
+  #page-detail > div { padding: 0.75rem !important; }
   .detail-wrap { padding: 1rem; }
-  .detail-title { font-size: 20px; }
-  .back-btn { font-size: 12px; padding: 6px 12px; margin-bottom: 0.8rem; }
+  .detail-title { font-size: 19px; }
+  .back-btn { font-size: 12px; padding: 6px 12px; margin-bottom: 0.75rem; }
   .viewer-toolbar button { padding: 3px 7px; font-size: 10px; }
 
   /* 댓글 */
@@ -263,15 +267,22 @@ nav {
   .form-title { font-size: 17px; margin-bottom: 1rem; }
   .form-input { font-size: 14px; padding: 9px 12px; }
 
+  /* 마이페이지 */
+  #page-mypage > div { padding: 0.75rem !important; max-width: 100% !important; }
+
+  /* 검색 */
+  #page-search > div { padding: 0.75rem !important; }
+
+  /* 관리자 */
+  #page-admin > div { padding: 0.75rem !important; max-width: 100% !important; }
+
   /* 모달 */
   .modal-overlay { align-items: flex-end; }
   .modal { border-radius: 16px 16px 0 0 !important; width: 100% !important; max-width: 100% !important; padding: 1.5rem 1.2rem; }
-
-  /* 인증 모달 버튼 */
   .google-btn { padding: 13px; font-size: 14px; }
   #auth-submit-btn { padding: 13px !important; font-size: 14px; }
 
-  /* PWA 설치 배너 */
+  /* PWA 배너 */
   #pwa-install-banner { padding: 10px 14px 16px; }
 }
 
@@ -905,6 +916,18 @@ const INST_ICONS = {
 };
 function iicon(n){ return INST_ICONS[n]||'🎵'; }
 
+// 카드에 표시할 설명 — URL 제거, 블로그 링크 있으면 아이콘 표시
+function cleanDesc(desc, blogLinks) {
+  if (!desc && (!blogLinks||!blogLinks.length)) return '';
+  // URL 패턴 제거
+  let clean = (desc||'').replace(/https?:\/\/[^\s]+/g, '').trim();
+  // 블로그 링크가 있고 설명이 없으면 링크 레이블 표시
+  if (!clean && blogLinks && blogLinks.length > 0) {
+    return blogLinks.slice(0,2).map(b=>`${b.icon||'🔗'} ${b.label||'링크'}`).join(' · ');
+  }
+  return clean;
+}
+
 // 악보 유형
 const SCORE_TYPES = [
   { value: 'part',      label: '파트보',    desc: '특정 악기 파트만',  icon: '🎵' },
@@ -1357,7 +1380,7 @@ function renderPostCard(p) {
       <div class="post-body">
         <div class="post-cat">${p.category||''}</div>
         <div class="post-title">${p.title}</div>
-        <div class="post-desc">${p.desc||''}</div>
+        <div class="post-desc">${cleanDesc(p.desc, p.blogLinks)}</div>
         <div class="post-tags">
           ${instruments.map(i=>`<span class="post-tag">${iicon(i)} ${i}</span>`).join('')}
           ${tags}
