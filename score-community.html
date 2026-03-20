@@ -2514,11 +2514,12 @@ function handleHashNavigation() {
   }
 }
 
-// goHome 시 해시 제거
-const _origGoHome = goHome;
+// goHome — 해시 제거 + 홈으로 이동
 function goHome() {
   history.replaceState(null, '', location.pathname + location.search);
-  _origGoHome();
+  currentPostId = null;
+  showPage('home');
+  loadPosts();
 }
 
 // ── UTILS ──
