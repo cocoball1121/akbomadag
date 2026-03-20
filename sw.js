@@ -1,12 +1,11 @@
 // 악보마당 Service Worker
-const CACHE_NAME = 'akbomadag-v1';
+const CACHE_NAME = 'akbomadag-v4';
 const STATIC_ASSETS = [
-  './score-community.html',
   './manifest.json',
-  'https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&family=Pretendard:wght@300;400;500;600&display=swap',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
 ];
+// HTML은 캐시하지 않음 — 항상 최신 버전 사용 (리다이렉트 로그인 호환)
 
 // 설치: 핵심 파일 캐시
 self.addEventListener('install', event => {
@@ -34,16 +33,26 @@ self.addEventListener('activate', event => {
   );
 });
 
-// 요청 처리: Network First (Firebase 요청) / Cache First (정적 파일)
+// 요청 처리
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Firebase, Google API — 항상 네트워크 우선
+  // HTML 파일 — 항상 네트워크 우선 (리다이렉트 로그인 호환)
+  if (event.request.destination === 'document' ||
+      url.pathname.endsWith('.html')) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Firebase, Google API — 항상 네트워크
   if (
     url.hostname.includes('firebase') ||
     url.hostname.includes('googleapis') ||
     url.hostname.includes('gstatic') ||
-    url.hostname.includes('firebaseapp')
+    url.hostname.includes('firebaseapp') ||
+    url.hostname.includes('accounts.google')
   ) {
     event.respondWith(
       fetch(event.request).catch(() => caches.match(event.request))
@@ -51,23 +60,16 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // 정적 파일 — Cache First, 없으면 네트워크
+  // 나머지 정적 파일 — Cache First
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
       return fetch(event.request).then(response => {
-        if (!response || response.status !== 200 || response.type === 'opaque') {
-          return response;
-        }
+        if (!response || response.status !== 200 || response.type === 'opaque') return response;
         const toCache = response.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, toCache));
         return response;
-      }).catch(() => {
-        // 오프라인 폴백
-        if (event.request.destination === 'document') {
-          return caches.match('./score-community.html');
-        }
-      });
+      }).catch(() => caches.match('./score-community.html'));
     })
   );
 });

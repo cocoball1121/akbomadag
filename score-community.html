@@ -59,11 +59,25 @@
       collection, getDocs, query, where, orderBy, limit,
       increment, arrayUnion, arrayRemove, serverTimestamp,
       ref, uploadString, getDownloadURL, deleteObject };
-    // onAuthStateChanged — 리다이렉트 후 자동으로 user 받음
+
+    // ① 리다이렉트 결과 — 페이지 로드 즉시 처리
+    getRedirectResult(auth).then(r => {
+      if (r?.user) {
+        console.log('[Auth] 리다이렉트 성공:', r.user.email);
+        window._me = r.user;
+        window._pendingRedirectUser = r.user;
+      }
+    }).catch(e => {
+      if (e.code !== 'auth/no-auth-event') {
+        console.warn('[Auth] redirect error:', e.code, e.message);
+        window._redirectError = e.code || e.message;
+      }
+    });
+
+    // ② onAuthStateChanged — 리다이렉트 포함 모든 로그인 상태 처리
     onAuthStateChanged(auth, async user => {
       window._me = user;
-      // updateAuthUI / loadAdmins 가 아직 정의 안 됐을 수 있으므로 대기
-      const waitFn = (fn, ms=2000) => new Promise(res => {
+      const waitFn = (fn, ms=3000) => new Promise(res => {
         if (window[fn]) { res(); return; }
         const start = Date.now();
         const t = setInterval(() => {
@@ -73,30 +87,20 @@
       await waitFn('updateAuthUI');
       if (user && window.loadAdmins) await window.loadAdmins();
       if (window.updateAuthUI) window.updateAuthUI(user);
-      // 리다이렉트 로그인 후 모달 닫기
       if (user) {
         const modal = document.getElementById('auth-modal');
         if (modal) modal.classList.remove('open');
-        if (window.showToast && sessionStorage.getItem('redirect-login')) {
-          sessionStorage.removeItem('redirect-login');
-          window.showToast('✓ Google 로그인됐습니다!', 'success');
+        // 리다이렉트 로그인 완료 토스트
+        if (window._pendingRedirectUser?.uid === user.uid) {
+          window._pendingRedirectUser = null;
+          if (window.showToast) window.showToast('✓ Google 로그인됐습니다!', 'success');
         }
       }
+      if (window._redirectError && window.showToast) {
+        window.showToast('로그인 오류: ' + window._redirectError, 'error');
+        window._redirectError = null;
+      }
     });
-
-    // 리다이렉트 결과 확인
-    getRedirectResult(auth)
-      .then(r => {
-        if (r?.user) {
-          console.log('[Auth] 리다이렉트 로그인 성공:', r.user.email);
-          document.getElementById('auth-modal')?.classList.remove('open');
-          if (window.showToast) showToast('✓ Google 로그인됐습니다!', 'success');
-        }
-      })
-      .catch(e => {
-        console.warn('[Auth] redirect result:', e.code, e.message);
-        if (window.showToast) showToast('로그인 오류: ' + (e.code||e.message), 'error');
-      });
   } else {
     window._fb = null; window._me = null;
     setTimeout(() => { if (window.updateAuthUI) window.updateAuthUI(null); }, 300);
@@ -1252,23 +1256,10 @@ async function googleLogin() {
     const fb = await waitForFb();
     const provider = new fb.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-    try {
-      // 먼저 팝업 시도
-      const result = await fb.signInWithPopup(fb.auth, provider);
-      if (result.user) {
-        document.getElementById('auth-modal').classList.remove('open');
-        showToast('✓ Google 로그인됐습니다!', 'success');
-      }
-    } catch(popupErr) {
-      // 팝업 실패 시 리다이렉트로 폴백
-      if (popupErr.code === 'auth/popup-blocked' || popupErr.code === 'auth/popup-closed-by-user') {
-        showToast('Google 로그인 페이지로 이동합니다...', '');
-        sessionStorage.setItem('redirect-login', '1');
-        await fb.signInWithRedirect(fb.auth, provider);
-      } else {
-        throw popupErr;
-      }
-    }
+    // 항상 리다이렉트 방식 사용 (모바일/PWA 호환성)
+    showToast('Google 로그인 페이지로 이동합니다...', '');
+    sessionStorage.setItem('redirect-login', '1');
+    await fb.signInWithRedirect(fb.auth, provider);
   } catch(e) {
     if (e.message === 'Firebase 초기화 시간 초과') {
       showToast('Firebase 연결 중이에요. 잠시 후 다시 시도해주세요.', 'error');
