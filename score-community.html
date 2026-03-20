@@ -799,14 +799,7 @@ label { display: block; font-size: 11px; font-weight: 700; color: var(--text2); 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
 <script>
-// 스크립트 로딩 전 클릭 방지용 임시 스텁
-window._stubReady = false;
-// goHome: 메인 스크립트 로드 후 실제 함수로 교체됨
-window.goHome = function() { location.reload(); };
-window.showSearchPage = function() {};
-window.openCatManage = function() {};
-window.showAdminPage = function() {};
-// openAuth: 모달 직접 열기
+// openAuth: 모달 직접 열기 (스크립트 로딩 전 클릭 대비)
 window.openAuth = function() {
   var m = document.getElementById('auth-modal');
   if (m) m.classList.add('open');
@@ -1129,8 +1122,9 @@ function updateAuthUI(user) {
   const tabMeLabel = document.getElementById('tab-me-label');
   if (tabMeIcon && tabMeLabel) {
     if (user) {
-      tabMeIcon.textContent = user.photoURL ? '👤' : (user.displayName?.[0]||'👤');
-      tabMeLabel.textContent = user.displayName?.split(' ')[0] || '나';
+      const admin = isAdmin();
+      tabMeIcon.textContent = admin ? '👑' : '👤';
+      tabMeLabel.textContent = admin ? '관리' : (user.displayName?.split(' ')[0] || '나');
     } else {
       tabMeIcon.textContent = '👤';
       tabMeLabel.textContent = '로그인';
@@ -2356,12 +2350,43 @@ function mobileTab(tab, el) {
   else if (tab === 'bookmarks') { showBookmarks(); }
   else if (tab === 'me') {
     if (window._me) {
-      showMyPage();
+      // 관리자면 관리자 페이지, 아니면 마이페이지
+      if (isAdmin()) {
+        showAdminOrMyMenu(el);
+      } else {
+        showMyPage();
+      }
     } else {
       document.getElementById('auth-modal').classList.add('open');
       el.classList.remove('active');
     }
   }
+}
+
+// 관리자일 때 탭 클릭 → 작은 메뉴 표시
+function showAdminOrMyMenu(tabEl) {
+  // 이미 메뉴 있으면 제거
+  const existing = document.getElementById('admin-tab-menu');
+  if (existing) { existing.remove(); return; }
+
+  const menu = document.createElement('div');
+  menu.id = 'admin-tab-menu';
+  menu.style.cssText = `position:fixed;bottom:70px;right:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);z-index:300;overflow:hidden;min-width:150px;`;
+  menu.innerHTML = `
+    <button onclick="showMyPage();document.getElementById('admin-tab-menu')?.remove()" style="display:flex;align-items:center;gap:8px;width:100%;padding:12px 16px;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:14px;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">👤 마이페이지</button>
+    <button onclick="showAdminPage();document.getElementById('admin-tab-menu')?.remove()" style="display:flex;align-items:center;gap:8px;width:100%;padding:12px 16px;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:14px;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">⚙️ 카테고리</button>
+    <button onclick="showAdminPage();document.getElementById('admin-tab-menu')?.remove()" style="display:flex;align-items:center;gap:8px;width:100%;padding:12px 16px;background:none;border:none;color:var(--text);font-size:14px;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">👑 관리자 설정</button>
+  `;
+  document.body.appendChild(menu);
+  // 외부 클릭 시 닫기
+  setTimeout(() => {
+    document.addEventListener('click', function handler(e) {
+      if (!menu.contains(e.target) && e.target !== tabEl) {
+        menu.remove();
+        document.removeEventListener('click', handler);
+      }
+    });
+  }, 100);
 }
 // ── 마이페이지 ──
 let myPageSortMode = 'latest';
