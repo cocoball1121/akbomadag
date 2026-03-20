@@ -465,6 +465,32 @@ label { display: block; font-size: 11px; font-weight: 700; color: var(--text2); 
               <option>입문</option><option>초급</option><option>중급</option><option>고급</option>
             </select>
           </div>
+          <div class="form-row">
+            <label>조성 (Key)</label>
+            <select class="form-input" id="up-key">
+              <option value="">선택 안 함</option>
+              <optgroup label="장조 (Major)">
+                <option>C</option><option>C#/Db</option><option>D</option><option>D#/Eb</option>
+                <option>E</option><option>F</option><option>F#/Gb</option><option>G</option>
+                <option>G#/Ab</option><option>A</option><option>A#/Bb</option><option>B</option>
+              </optgroup>
+              <optgroup label="단조 (Minor)">
+                <option>Am</option><option>A#m/Bbm</option><option>Bm</option><option>Cm</option>
+                <option>C#m/Dbm</option><option>Dm</option><option>D#m/Ebm</option><option>Em</option>
+                <option>Fm</option><option>F#m/Gbm</option><option>Gm</option><option>G#m/Abm</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-row">
+            <label>BPM (템포)</label>
+            <input type="number" class="form-input" id="up-bpm" placeholder="예) 120" min="20" max="300">
+          </div>
+          <div class="form-row">
+            <label>마디 수</label>
+            <input type="number" class="form-input" id="up-measures" placeholder="예) 32" min="1">
+          </div>
         </div>
         <div class="form-row">
           <label>설명</label>
@@ -657,12 +683,40 @@ label { display: block; font-size: 11px; font-weight: 700; color: var(--text2); 
       <label>작곡가</label>
       <input type="text" class="form-input" id="edit-composer" placeholder="예) 베토벤">
     </div>
-    <div class="form-row">
-      <label>난이도</label>
-      <select class="form-input" id="edit-level">
-        <option value="">선택 안 함</option>
-        <option>입문</option><option>초급</option><option>중급</option><option>고급</option>
-      </select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-row">
+        <label>난이도</label>
+        <select class="form-input" id="edit-level">
+          <option value="">선택 안 함</option>
+          <option>입문</option><option>초급</option><option>중급</option><option>고급</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>조성 (Key)</label>
+        <select class="form-input" id="edit-key">
+          <option value="">선택 안 함</option>
+          <optgroup label="장조">
+            <option>C</option><option>C#/Db</option><option>D</option><option>D#/Eb</option>
+            <option>E</option><option>F</option><option>F#/Gb</option><option>G</option>
+            <option>G#/Ab</option><option>A</option><option>A#/Bb</option><option>B</option>
+          </optgroup>
+          <optgroup label="단조">
+            <option>Am</option><option>A#m/Bbm</option><option>Bm</option><option>Cm</option>
+            <option>C#m/Dbm</option><option>Dm</option><option>D#m/Ebm</option><option>Em</option>
+            <option>Fm</option><option>F#m/Gbm</option><option>Gm</option><option>G#m/Abm</option>
+          </optgroup>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-row">
+        <label>BPM (템포)</label>
+        <input type="number" class="form-input" id="edit-bpm" placeholder="예) 120" min="20" max="300">
+      </div>
+      <div class="form-row">
+        <label>마디 수</label>
+        <input type="number" class="form-input" id="edit-measures" placeholder="예) 32" min="1">
+      </div>
     </div>
     <div class="form-row">
       <label>설명</label>
@@ -1364,6 +1418,8 @@ function renderPostCard(p) {
         </div>
         <div class="post-meta">
           <span>👤 ${p.author||'익명'}</span>
+          ${p.key?`<span style="color:#4285f4;font-weight:600;">🎵 ${p.key}</span>`:''}
+          ${p.bpm?`<span style="color:#ea4335;">♩${p.bpm}</span>`:''}
           ${p.level?`<span>📊 ${p.level}</span>`:''}
           <span>❤ ${p.likes||0}</span>
           <span>💬 ${p.comments||0}</span>
@@ -1421,6 +1477,12 @@ function renderDetail(p) {
   const ytId = extractYtId(p.youtube||'');
   document.getElementById('detail-content').innerHTML = `
     <div class="detail-cat">${p.category||''} ${p.instrument?'· '+p.instrument:''} ${p.level?'· '+p.level:''}</div>
+    ${(p.key||p.bpm||p.measures) ? `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      ${p.key?`<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;background:rgba(66,133,244,0.08);border:1px solid rgba(66,133,244,0.2);font-size:12px;font-weight:600;color:#4285f4;">🎵 ${p.key}</span>`:''}
+      ${p.bpm?`<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;background:rgba(234,67,53,0.07);border:1px solid rgba(234,67,53,0.18);font-size:12px;font-weight:600;color:#ea4335;">♩ ${p.bpm} BPM</span>`:''}
+      ${p.measures?`<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;background:var(--bg2);border:1px solid var(--border);font-size:12px;color:var(--text2);">📏 ${p.measures}마디</span>`:''}
+    </div>` : ''}
     <div class="detail-title">${p.title}</div>
     <div class="detail-author-row">
       <div class="avatar">${(p.author||'?')[0].toUpperCase()}</div>
@@ -1662,6 +1724,12 @@ async function openEditModal(postId) {
   document.getElementById('edit-youtube').value = post.youtube || '';
   const lvSel = document.getElementById('edit-level');
   lvSel.value = post.level || '';
+  const kySel = document.getElementById('edit-key');
+  if (kySel) kySel.value = post.key || '';
+  const bpmEl = document.getElementById('edit-bpm');
+  if (bpmEl) bpmEl.value = post.bpm || '';
+  const measEl = document.getElementById('edit-measures');
+  if (measEl) measEl.value = post.measures || '';
 
   // 블로그 링크
   editBlogLinks = JSON.parse(JSON.stringify(post.blogLinks||[]));
@@ -1757,6 +1825,9 @@ async function submitEdit() {
     title, category: cat,
     composer: document.getElementById('edit-composer').value.trim(),
     level: document.getElementById('edit-level').value,
+    key: document.getElementById('edit-key')?.value || null,
+    bpm: document.getElementById('edit-bpm')?.value ? parseInt(document.getElementById('edit-bpm').value) : null,
+    measures: document.getElementById('edit-measures')?.value ? parseInt(document.getElementById('edit-measures').value) : null,
     desc: document.getElementById('edit-desc').value.trim(),
     youtube: document.getElementById('edit-youtube').value.trim(),
     tags, instruments,
@@ -1981,8 +2052,9 @@ function startUpload() {
   renderBlogLinksList();
   instrumentParts = [];
   activePartId = null;
-  ['up-title','up-composer','up-desc','up-tags','up-youtube','up-blog'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['up-title','up-composer','up-desc','up-tags','up-youtube','up-blog','up-bpm','up-measures'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const lv=document.getElementById('up-level'); if(lv) lv.value='';
+  const ky=document.getElementById('up-key'); if(ky) ky.value='';
   addInstrumentPart(); // 기본 1개 추가
 }
 
@@ -2071,13 +2143,16 @@ async function submitPost() {
     composer:document.getElementById('up-composer').value.trim(),
     instruments,
     level:document.getElementById('up-level').value,
+    key:document.getElementById('up-key').value||null,
+    bpm:document.getElementById('up-bpm').value ? parseInt(document.getElementById('up-bpm').value) : null,
+    measures:document.getElementById('up-measures').value ? parseInt(document.getElementById('up-measures').value) : null,
     desc:document.getElementById('up-desc').value.trim(),
     youtube:document.getElementById('up-youtube').value.trim(),
     blogLinks: [...blogLinks],
     tags, likes:0, likedBy:[], comments:0,
     author:window._me.displayName||'회원',
     authorId:window._me.uid,
-    parts, // 악기별 파일 포함
+    parts,
     storageMode:'base64',
     createdAt:new Date()
   };
