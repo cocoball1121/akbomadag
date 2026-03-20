@@ -764,6 +764,66 @@ label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); 
   </div>
 
 </div>
+
+<!-- Edit Post Modal -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal" style="width:560px;max-height:90vh;overflow-y:auto;">
+    <div class="modal-title">✏️ 악보 수정</div>
+    <div class="form-row">
+      <label>카테고리 *</label>
+      <select class="form-input" id="edit-cat"></select>
+    </div>
+    <div class="form-row">
+      <label>곡 제목 *</label>
+      <input type="text" class="form-input" id="edit-title" placeholder="예) 엘리제를 위하여">
+    </div>
+    <div class="form-row">
+      <label>작곡가</label>
+      <input type="text" class="form-input" id="edit-composer" placeholder="예) 베토벤">
+    </div>
+    <div class="form-row">
+      <label>난이도</label>
+      <select class="form-input" id="edit-level">
+        <option value="">선택 안 함</option>
+        <option>입문</option><option>초급</option><option>중급</option><option>고급</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>설명</label>
+      <textarea class="form-input" id="edit-desc" rows="3"></textarea>
+    </div>
+    <div class="form-row">
+      <label>태그 (쉼표로 구분)</label>
+      <input type="text" class="form-input" id="edit-tags">
+    </div>
+    <div class="form-row">
+      <label>유튜브 링크</label>
+      <input type="text" class="form-input" id="edit-youtube">
+    </div>
+    <div class="form-row">
+      <label>블로그 / 공식 링크</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" class="form-input" id="edit-blog" placeholder="https://..." style="flex:1;" onkeydown="if(event.key==='Enter')addEditBlogLink()">
+        <button type="button" onclick="addEditBlogLink()" style="padding:8px 14px;border-radius:var(--radius-sm);background:transparent;border:1px solid var(--border2);color:var(--text2);cursor:pointer;font-size:12px;font-family:'Pretendard',sans-serif;touch-action:manipulation;">+ 추가</button>
+      </div>
+      <div id="edit-blog-list" style="display:flex;flex-direction:column;gap:6px;margin-top:8px;"></div>
+    </div>
+    <div class="form-row">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <label style="margin:0;">악기별 악보 파일</label>
+        <button type="button" onclick="addEditPart()" style="font-size:12px;padding:4px 12px;border-radius:20px;background:transparent;border:1px solid var(--border2);color:var(--accent);cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">+ 악기 추가</button>
+      </div>
+      <div id="edit-parts-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <input type="file" id="edit-part-file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="editPartFileChosen(this)">
+      <div style="font-size:11px;color:var(--text3);margin-top:6px;">💡 파일을 새로 선택하면 교체돼요 · 700KB 이하</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:1rem;">
+      <button class="btn btn-accent" style="flex:1;padding:12px;" onclick="submitEdit()">저장하기</button>
+      <button class="btn btn-outline" style="padding:12px 20px;" onclick="document.getElementById('edit-modal').classList.remove('open')">취소</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="cat-modal">
   <div class="modal" style="width:460px;">
     <div class="modal-title">⚙ 카테고리 관리</div>
@@ -1547,7 +1607,10 @@ function renderDetail(p) {
         <button onclick="downloadAllParts('${p.id}')" style="display:flex;align-items:center;gap:6px;padding:7px 16px;border-radius:20px;background:var(--accent);border:none;color:white;font-size:13px;font-weight:500;cursor:pointer;font-family:'Pretendard',sans-serif;transition:all 0.12s;" onmouseover="this.style.background='var(--accent2)'" onmouseout="this.style.background='var(--accent)'">
           ⬇ 전체 다운로드
         </button>`:''}
-      ${myId===p.authorId?`<button class="btn btn-outline" onclick="deletePost('${p.id}')" style="font-size:12px;border-color:rgba(200,50,50,0.3);color:#c0392b;">삭제</button>`:''}
+      ${myId===p.authorId||isAdmin()?`
+        <button class="btn btn-outline" onclick="openEditModal('${p.id}')" style="font-size:12px;">✏️ 수정</button>
+        <button class="btn btn-outline" onclick="deletePost('${p.id}')" style="font-size:12px;border-color:rgba(200,50,50,0.3);color:#c0392b;">삭제</button>
+      `:''}
     </div>
 
     ${(p.parts&&p.parts.filter(pt=>pt.fileData).length>0)?`
@@ -1681,6 +1744,164 @@ async function toggleLike(postId) {
     document.querySelector('.like-btn').classList.toggle('liked', !liked);
     document.querySelector('.like-btn').innerHTML = `${liked?'🤍':'❤'} 좋아요 <span id="like-count">${post.likes}</span>`;
   }
+}
+
+// ── 수정 ──
+let editPostId = null;
+let editBlogLinks = [];
+let editParts = [];
+let editActivePartId = null;
+
+async function openEditModal(postId) {
+  editPostId = postId;
+  let post = null;
+  if (window._fb) {
+    try {
+      const snap = await window._fb.getDoc(window._fb.doc(window._fb.db, 'posts', postId));
+      if (snap.exists()) post = { id: snap.id, ...snap.data() };
+    } catch(e) {}
+  }
+  if (!post) post = demoPosts.find(p => p.id === postId);
+  if (!post) { showToast('게시물을 찾을 수 없어요', 'error'); return; }
+
+  // 카테고리 옵션 채우기
+  const catSel = document.getElementById('edit-cat');
+  catSel.innerHTML = CATEGORIES.slice(1).map(c => `<option${c===post.category?' selected':''}>${c}</option>`).join('');
+
+  // 필드 채우기
+  document.getElementById('edit-title').value = post.title || '';
+  document.getElementById('edit-composer').value = post.composer || '';
+  document.getElementById('edit-desc').value = post.desc || '';
+  document.getElementById('edit-tags').value = (post.tags||[]).join(', ');
+  document.getElementById('edit-youtube').value = post.youtube || '';
+  const lvSel = document.getElementById('edit-level');
+  lvSel.value = post.level || '';
+
+  // 블로그 링크
+  editBlogLinks = JSON.parse(JSON.stringify(post.blogLinks||[]));
+  renderEditBlogList();
+
+  // 파트
+  editParts = JSON.parse(JSON.stringify(post.parts||[]));
+  renderEditParts();
+
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function renderEditBlogList() {
+  document.getElementById('edit-blog-list').innerHTML = editBlogLinks.map((b,i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);">
+      <span style="font-size:15px;">${b.icon||'🔗'}</span>
+      <div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);">${b.label} — ${b.url}</div>
+      <button onclick="editBlogLinks.splice(${i},1);renderEditBlogList()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;touch-action:manipulation;">×</button>
+    </div>`).join('');
+}
+
+function addEditBlogLink() {
+  const url = document.getElementById('edit-blog').value.trim();
+  if (!url || !url.startsWith('http')) { showToast('올바른 링크를 입력해주세요', 'error'); return; }
+  if (editBlogLinks.some(b => b.url === url)) { showToast('이미 추가된 링크예요', 'error'); return; }
+  const meta = detectBlogType(url);
+  editBlogLinks.push({ url, label: meta.label, icon: meta.icon, type: meta.type });
+  document.getElementById('edit-blog').value = '';
+  renderEditBlogList();
+}
+
+function renderEditParts() {
+  const list = document.getElementById('edit-parts-list');
+  if (!editParts.length) {
+    list.innerHTML = `<div style="text-align:center;padding:1rem;border:2px dashed var(--border2);border-radius:var(--radius-sm);color:var(--text3);font-size:13px;cursor:pointer;" onclick="addEditPart()">+ 악기 파트 추가</div>`;
+    return;
+  }
+  list.innerHTML = editParts.map((p,i) => `
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:18px;">${iicon(p.instrument)}</span>
+        <select onchange="editParts[${i}].instrument=this.value;renderEditParts()" style="flex:1;padding:6px 10px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface);font-size:13px;font-family:'Pretendard',sans-serif;color:var(--text);outline:none;">
+          ${INSTRUMENTS_LIST.map(ins=>`<option${ins===p.instrument?' selected':''}>${iicon(ins)} ${ins}</option>`).join('')}
+        </select>
+        <button onclick="editParts.splice(${i},1);renderEditParts()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;touch-action:manipulation;" onmouseover="this.style.color='#c0392b'" onmouseout="this.style.color='var(--text3)'">×</button>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
+        ${SCORE_TYPES.map(t=>`<button onclick="editParts[${i}].scoreType='${t.value}';renderEditParts()" style="padding:3px 9px;border-radius:20px;font-size:11px;border:1px solid ${p.scoreType===t.value?'var(--accent)':'var(--border)'};background:${p.scoreType===t.value?'var(--accent-bg)':'transparent'};color:${p.scoreType===t.value?'var(--accent)':'var(--text2)'};cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">${t.icon} ${t.label}</button>`).join('')}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button onclick="editActivePartId='${p.id||i}';window._editPartIdx=${i};document.getElementById('edit-part-file').click()" style="flex:1;padding:7px 10px;border-radius:var(--radius-sm);border:2px dashed ${p.fileData?'var(--accent)':'var(--border2)'};background:${p.fileData?'var(--accent-bg)':'transparent'};color:${p.fileData?'var(--accent)':'var(--text3)'};cursor:pointer;font-size:11px;font-family:'Pretendard',sans-serif;text-align:left;touch-action:manipulation;">
+          ${p.fileData ? `📄 ${p.fileName||'파일 있음'}` : '+ 파일 선택'}
+        </button>
+        ${p.fileData?`<button onclick="editParts[${i}].fileData=null;editParts[${i}].fileName='';renderEditParts()" style="padding:6px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;font-size:11px;font-family:'Pretendard',sans-serif;touch-action:manipulation;">삭제</button>`:''}
+      </div>
+      ${p.sizeWarn?`<div style="font-size:11px;color:#c0392b;margin-top:4px;">⚠ ${p.sizeWarn}</div>`:''}
+    </div>`).join('');
+}
+
+function addEditPart() {
+  editParts.push({ id:'ep_'+Date.now(), instrument:'피아노', scoreType:'part', fileName:'', fileData:null, fileType:null });
+  renderEditParts();
+}
+
+function editPartFileChosen(input) {
+  if (!input.files[0]) return;
+  const f = input.files[0];
+  const idx = window._editPartIdx;
+  if (idx === undefined || !editParts[idx]) return;
+  if (f.size > 700*1024) {
+    editParts[idx].sizeWarn = `${Math.round(f.size/1024)}KB — 700KB 초과`;
+    renderEditParts(); input.value=''; return;
+  }
+  editParts[idx].fileName = f.name;
+  editParts[idx].fileType = f.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'img';
+  editParts[idx].sizeWarn = null;
+  const reader = new FileReader();
+  reader.onload = e => { editParts[idx].fileData = e.target.result; renderEditParts(); };
+  reader.readAsDataURL(f);
+  input.value = '';
+}
+
+async function submitEdit() {
+  const title = document.getElementById('edit-title').value.trim();
+  const cat = document.getElementById('edit-cat').value;
+  if (!title) { showToast('제목을 입력해주세요', 'error'); return; }
+  if (!cat) { showToast('카테고리를 선택해주세요', 'error'); return; }
+
+  const tags = document.getElementById('edit-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  const instruments = [...new Set(editParts.map(p=>p.instrument))];
+
+  const updates = {
+    title, category: cat,
+    composer: document.getElementById('edit-composer').value.trim(),
+    level: document.getElementById('edit-level').value,
+    desc: document.getElementById('edit-desc').value.trim(),
+    youtube: document.getElementById('edit-youtube').value.trim(),
+    tags, instruments,
+    blogLinks: editBlogLinks,
+    parts: editParts.map(p => ({
+      id: p.id, instrument: p.instrument,
+      scoreType: p.scoreType||'part',
+      fileName: p.fileName||'', fileType: p.fileType||null,
+      fileData: p.fileData||null
+    })),
+  };
+
+  if (window._fb) {
+    try {
+      await window._fb.updateDoc(window._fb.doc(window._fb.db, 'posts', editPostId), updates);
+      showToast('✓ 수정됐습니다!', 'success');
+    } catch(e) {
+      if (e.message?.includes('larger than') || e.message?.includes('exceeds')) {
+        showToast('파일 용량 초과 — 700KB 이하 파일을 사용해주세요', 'error'); return;
+      }
+      showToast('저장 실패: ' + e.message, 'error'); return;
+    }
+  } else {
+    const post = demoPosts.find(p => p.id === editPostId);
+    if (post) Object.assign(post, updates);
+  }
+
+  document.getElementById('edit-modal').classList.remove('open');
+  // 상세 화면 새로고침
+  currentDetailPost = null;
+  openPost(editPostId);
 }
 
 async function deletePost(postId) {
