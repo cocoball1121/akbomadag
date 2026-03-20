@@ -172,7 +172,108 @@ nav {
 
 /* LAYOUT */
 .layout { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; display: grid; grid-template-columns: 1fr 280px; gap: 2rem; }
-@media(max-width:768px){ .layout { grid-template-columns: 1fr; padding: 1rem; } .sidebar { display: none; } }
+@media(max-width:768px){ .layout { grid-template-columns: 1fr; padding: 0.75rem; } .sidebar { display: none; } }
+
+/* 모바일 하단 탭바 */
+.mobile-tabbar {
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 150;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 6px 0 max(6px, env(safe-area-inset-bottom));
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
+}
+.mobile-tabbar-inner { display: flex; justify-content: space-around; align-items: center; }
+.tab-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 6px 12px; background: none; border: none; cursor: pointer;
+  color: var(--text3); font-size: 10px; font-family: 'Pretendard', sans-serif;
+  touch-action: manipulation; min-width: 60px;
+  transition: color 0.12s;
+}
+.tab-btn.active { color: var(--accent); }
+.tab-icon { font-size: 22px; line-height: 1; }
+
+@media(max-width: 600px) {
+  /* 전체 여백 */
+  body { padding-bottom: 68px; }
+
+  /* 상단 nav */
+  .nav-inner { padding: 0 1rem; height: 52px; gap: 8px; }
+  .logo { font-size: 19px; }
+  .nav-cats { display: none; } /* 카테고리 탭으로 이동 */
+  #cat-manage-btn { display: none !important; }
+  #admin-page-btn { font-size: 11px; padding: 5px 8px; }
+  #nav-auth .btn-outline { font-size: 12px; padding: 6px 12px; min-height: 36px; }
+
+  /* 하단 탭바 표시 */
+  .mobile-tabbar { display: block; }
+
+  /* 히어로 영역 */
+  .hero {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1rem;
+    gap: 10px;
+    margin-bottom: 1rem;
+    border-radius: var(--radius-sm);
+  }
+  .hero-title { font-size: 17px; }
+  .hero-sub { font-size: 12px; }
+  .search-wrap { width: 100%; }
+  .search-input { font-size: 14px; padding: 10px 14px; }
+  .search-wrap .btn-accent { padding: 10px 16px; font-size: 13px; }
+
+  /* 카테고리 탭 */
+  #cat-tabs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; gap: 6px; }
+  #cat-tabs::-webkit-scrollbar { display: none; }
+  #cat-tabs button { flex-shrink: 0; font-size: 12px; padding: 6px 14px; }
+
+  /* 결과 헤더 */
+  #post-count-label { font-size: 12px; }
+  #sort-latest, #sort-likes { font-size: 11px; padding: 5px 10px; }
+
+  /* 악보 카드 */
+  .post-card { margin-bottom: 10px; border-radius: var(--radius-sm); }
+  .post-card-inner { display: flex; }
+  .post-thumb { width: 90px !important; min-height: 100px !important; flex-shrink: 0; }
+  .post-thumb-icon { font-size: 22px !important; }
+  .post-thumb-placeholder { padding: 0.5rem !important; }
+  .post-body { padding: 10px 12px 8px; }
+  .post-cat { font-size: 10px; margin-bottom: 2px; }
+  .post-title { font-size: 14px; margin-bottom: 3px; }
+  .post-desc { font-size: 11px; margin-bottom: 6px; -webkit-line-clamp: 1; }
+  .post-tags { gap: 3px; margin-bottom: 5px; }
+  .post-tag { font-size: 10px; padding: 1px 6px; }
+  .post-meta { font-size: 10px; gap: 6px; }
+
+  /* 상세 화면 */
+  .detail-wrap { padding: 1rem; }
+  .detail-title { font-size: 20px; }
+  .back-btn { font-size: 12px; padding: 6px 12px; margin-bottom: 0.8rem; }
+  .viewer-toolbar button { padding: 3px 7px; font-size: 10px; }
+
+  /* 댓글 */
+  .comment-section { padding: 1rem; }
+  .comment-input { font-size: 13px; }
+
+  /* 업로드 폼 */
+  #page-upload > div { padding: 0.75rem !important; max-width: 100% !important; }
+  .form-card { padding: 1rem; }
+  .form-title { font-size: 17px; margin-bottom: 1rem; }
+  .form-input { font-size: 14px; padding: 9px 12px; }
+
+  /* 모달 */
+  .modal-overlay { align-items: flex-end; }
+  .modal { border-radius: 16px 16px 0 0 !important; width: 100% !important; max-width: 100% !important; padding: 1.5rem 1.2rem; }
+
+  /* 인증 모달 버튼 */
+  .google-btn { padding: 13px; font-size: 14px; }
+  #auth-submit-btn { padding: 13px !important; font-size: 14px; }
+
+  /* PWA 설치 배너 */
+  #pwa-install-banner { padding: 10px 14px 16px; }
+}
 
 /* HERO SEARCH */
 .hero {
@@ -633,6 +734,32 @@ label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); 
   </div>
 </div>
 
+<!-- 모바일 하단 탭바 -->
+<div class="mobile-tabbar">
+  <div class="mobile-tabbar-inner">
+    <button class="tab-btn active" id="tab-home" onclick="mobileTab('home',this)" ontouchend="event.preventDefault();mobileTab('home',this)">
+      <span class="tab-icon">🏠</span>
+      <span>홈</span>
+    </button>
+    <button class="tab-btn" id="tab-search" onclick="mobileTab('search',this)" ontouchend="event.preventDefault();mobileTab('search',this)">
+      <span class="tab-icon">🔍</span>
+      <span>검색</span>
+    </button>
+    <button class="tab-btn" id="tab-upload" onclick="mobileTab('upload',this)" ontouchend="event.preventDefault();mobileTab('upload',this)">
+      <span class="tab-icon" style="font-size:28px;color:var(--accent);">＋</span>
+      <span>올리기</span>
+    </button>
+    <button class="tab-btn" id="tab-admin" onclick="mobileTab('admin',this)" ontouchend="event.preventDefault();mobileTab('admin',this)">
+      <span class="tab-icon">⚙️</span>
+      <span>관리</span>
+    </button>
+    <button class="tab-btn" id="tab-me" onclick="mobileTab('me',this)" ontouchend="event.preventDefault();mobileTab('me',this)">
+      <span class="tab-icon" id="tab-me-icon">👤</span>
+      <span id="tab-me-label">내 정보</span>
+    </button>
+  </div>
+</div>
+
 <!-- PWA 설치 배너 -->
 <div id="pwa-install-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:300;background:var(--surface);border-top:1px solid var(--border);padding:12px 16px 12px;align-items:center;gap:12px;box-shadow:0 -4px 20px rgba(0,0,0,0.1);">
   <img src="./icon-192.png" style="width:40px;height:40px;border-radius:10px;flex-shrink:0;" alt="아이콘">
@@ -959,7 +1086,18 @@ let authMode = 'login';
 function updateAuthUI(user) {
   const el = document.getElementById('nav-auth');
   if (!el) return;
-  // show/hide category manage button
+  // 모바일 탭 내 정보 업데이트
+  const tabMeIcon = document.getElementById('tab-me-icon');
+  const tabMeLabel = document.getElementById('tab-me-label');
+  if (tabMeIcon && tabMeLabel) {
+    if (user) {
+      tabMeIcon.textContent = user.photoURL ? '👤' : (user.displayName?.[0]||'👤');
+      tabMeLabel.textContent = user.displayName?.split(' ')[0] || '나';
+    } else {
+      tabMeIcon.textContent = '👤';
+      tabMeLabel.textContent = '로그인';
+    }
+  }
   const catBtn = document.getElementById('cat-manage-btn');
   const adminBtn = document.getElementById('admin-page-btn');
   const adminMode = user && isAdmin();
@@ -1862,7 +2000,29 @@ function showToast(msg,type=''){
   setTimeout(()=>t.className='toast',2800);
 }
 
-// ── BOOT ──
+// ── 모바일 하단 탭 ──
+function mobileTab(tab, el) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  if (tab === 'home') { goHome(); }
+  else if (tab === 'search') { showSearchPage(); }
+  else if (tab === 'upload') { startUpload(); }
+  else if (tab === 'admin') {
+    if (isAdmin()) showAdminPage();
+    else openCatManage();
+  }
+  else if (tab === 'me') {
+    if (window._me) {
+      if (confirm((window._me.displayName||'사용자') + '님, 로그아웃 할까요?')) {
+        handleUserClick();
+      }
+      el.classList.remove('active');
+    } else {
+      document.getElementById('auth-modal').classList.add('open');
+      el.classList.remove('active');
+    }
+  }
+}
 setTimeout(init, 100);
 window._stubReady = true;
 
