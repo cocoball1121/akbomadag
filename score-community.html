@@ -1275,13 +1275,28 @@ async function googleLogin() {
     const fb = await waitForFb();
     const provider = new fb.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-    // 항상 리다이렉트 방식 사용 (모바일/PWA 호환성)
-    showToast('Google 로그인 페이지로 이동합니다...', '');
-    sessionStorage.setItem('redirect-login', '1');
-    await fb.signInWithRedirect(fb.auth, provider);
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+    if (isMobile || isPWA) {
+      // 모바일 / PWA → 리다이렉트
+      showToast('Google 로그인 페이지로 이동합니다...', '');
+      sessionStorage.setItem('redirect-login', '1');
+      await fb.signInWithRedirect(fb.auth, provider);
+    } else {
+      // PC → 팝업
+      const result = await fb.signInWithPopup(fb.auth, provider);
+      if (result.user) {
+        document.getElementById('auth-modal').classList.remove('open');
+        showToast('✓ Google 로그인됐습니다!', 'success');
+      }
+    }
   } catch(e) {
     if (e.message === 'Firebase 초기화 시간 초과') {
       showToast('Firebase 연결 중이에요. 잠시 후 다시 시도해주세요.', 'error');
+    } else if (e.code === 'auth/popup-blocked') {
+      showToast('팝업이 차단됐어요. 브라우저 팝업 허용 후 다시 시도해주세요.', 'error');
+    } else if (e.code === 'auth/popup-closed-by-user') {
+      // 사용자가 닫은 것 — 토스트 불필요
     } else {
       showToast('로그인 실패: ' + (e.code || e.message), 'error');
     }
