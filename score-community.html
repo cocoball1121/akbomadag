@@ -609,6 +609,13 @@ label { display: block; font-size: 11px; font-weight: 700; color: var(--text2); 
           <button onclick="handleUserClick()" style="padding:8px 16px;border-radius:20px;background:transparent;border:1px solid var(--border2);color:var(--text2);font-size:13px;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">로그아웃</button>
         </div>
 
+        <!-- 관리자 전용 버튼 -->
+        <div id="my-admin-btns" style="display:none;padding-top:1rem;border-top:1px solid var(--border);margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap;">
+          <button onclick="openCatManage()" style="padding:8px 16px;border-radius:20px;background:var(--accent-bg);border:1px solid rgba(184,92,42,0.2);color:var(--accent);font-size:13px;font-weight:500;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">⚙️ 카테고리 관리</button>
+          <button onclick="showAdminPage()" style="padding:8px 16px;border-radius:20px;background:var(--accent-bg);border:1px solid rgba(184,92,42,0.2);color:var(--accent);font-size:13px;font-weight:500;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">👑 관리자 설정</button>
+        </div>
+        </div>
+
         <!-- 통계 -->
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:1.2rem;padding-top:1.2rem;border-top:1px solid var(--border);">
           <div style="text-align:center;">
@@ -1226,9 +1233,8 @@ function updateAuthUI(user) {
   const tabMeLabel = document.getElementById('tab-me-label');
   if (tabMeIcon && tabMeLabel) {
     if (user) {
-      const admin = isAdmin();
-      tabMeIcon.textContent = admin ? '👑' : '👤';
-      tabMeLabel.textContent = admin ? '관리' : (user.displayName?.split(' ')[0] || '나');
+      tabMeIcon.textContent = '👤';
+      tabMeLabel.textContent = user.displayName?.split(' ')[0] || '나';
     } else {
       tabMeIcon.textContent = '👤';
       tabMeLabel.textContent = '로그인';
@@ -2682,18 +2688,16 @@ function clearAllBookmarks() {
 function mobileTab(tab, el) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
+  // 혹시 열려있는 팝업 닫기
+  document.getElementById('admin-tab-menu')?.remove();
   if (tab === 'home') { goHome(); }
   else if (tab === 'search') { showSearchPage(); }
   else if (tab === 'upload') { startUpload(); }
   else if (tab === 'bookmarks') { showBookmarks(); }
   else if (tab === 'me') {
     if (window._me) {
-      // 관리자면 관리자 페이지, 아니면 마이페이지
-      if (isAdmin()) {
-        showAdminOrMyMenu(el);
-      } else {
-        showMyPage();
-      }
+      // 관리자면 마이페이지로 이동 (관리자 기능은 마이페이지 내에서)
+      showMyPage();
     } else {
       document.getElementById('auth-modal').classList.add('open');
       el.classList.remove('active');
@@ -2757,6 +2761,9 @@ function renderMyProfile() {
     if (isAdmin()) badges.push(`<span style="font-size:11px;padding:3px 10px;border-radius:10px;background:var(--accent-bg);color:var(--accent);border:1px solid rgba(184,92,42,0.2);">👑 관리자</span>`);
     badges.push(`<span style="font-size:11px;padding:3px 10px;border-radius:10px;background:var(--bg2);color:var(--text2);border:1px solid var(--border);">🎼 회원</span>`);
     badgeRow.innerHTML = badges.join('');
+    // 관리자 전용 버튼 표시
+    const adminBtns = document.getElementById('my-admin-btns');
+    if (adminBtns) adminBtns.style.display = isAdmin() ? 'flex' : 'none';
   }
 }
 
