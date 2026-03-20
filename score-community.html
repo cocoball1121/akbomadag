@@ -279,6 +279,8 @@ nav { background: rgba(255,255,255,0.96); backdrop-filter: blur(10px); border-bo
 .comment-input:focus { border-color: var(--accent); }
 .comment-item { display: flex; gap: 10px; padding: 11px 0; border-bottom: 0.5px solid var(--border); }
 .comment-item:last-child { border-bottom: none; }
+.reply-item { display: flex; gap: 8px; padding: 8px 0 4px 0; }
+.reply-list { margin-top: 6px; padding-left: 4px; border-left: 2px solid var(--border); margin-left: 2px; padding-left: 10px; }
 .comment-body { flex: 1; }
 .comment-name { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
 .comment-text { font-size: 13px; color: var(--text2); line-height: 1.6; }
@@ -1974,7 +1976,22 @@ async function loadComments(postId, post) {
         window._fb.orderBy('createdAt','asc')
       );
       const snap = await window._fb.getDocs(q);
-      snap.forEach(d => currentComments.push({id:d.id,...d.data()}));
+      // 각 댓글의 답글도 함께 로드
+      const commentDocs = [];
+      snap.forEach(d => commentDocs.push({id:d.id,...d.data()}));
+      for (const c of commentDocs) {
+        try {
+          const rSnap = await window._fb.getDocs(
+            window._fb.query(
+              window._fb.collection(window._fb.db,'posts',postId,'comments',c.id,'replies'),
+              window._fb.orderBy('createdAt','asc')
+            )
+          );
+          c.replies = [];
+          rSnap.forEach(r => c.replies.push({id:r.id,...r.data()}));
+        } catch(e) { c.replies = []; }
+        currentComments.push(c);
+      }
     } catch(e) {}
   }
   renderCommentSection(postId);
@@ -2002,20 +2019,126 @@ function renderComment(c, postId) {
   const isMine = myId && c.authorId === myId;
   const canDelete = isMine || isAdmin();
   const pid = postId || currentCommentPostId;
+  const replies = c.replies || [];
+
   return `<div class="comment-item" id="cmt-${c.id}">
     <div class="avatar" style="width:30px;height:30px;font-size:12px;flex-shrink:0;">${(c.author||'?')[0].toUpperCase()}</div>
     <div class="comment-body" style="flex:1;min-width:0;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
         <div class="comment-name">${c.author||'익명'}</div>
         <div style="display:flex;gap:4px;flex-shrink:0;">
+          ${window._me ? `<button onclick="toggleReplyInput('${c.id}','${pid}')" style="font-size:11px;padding:2px 8px;border-radius:10px;background:transparent;border:1px solid var(--border);color:var(--text3);cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">↩ 답글</button>` : ''}
           ${isMine ? `<button onclick="startEditComment('${c.id}','${pid}')" style="font-size:11px;padding:2px 8px;border-radius:10px;background:transparent;border:1px solid var(--border);color:var(--text3);cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">수정</button>` : ''}
           ${canDelete ? `<button onclick="deleteComment('${c.id}','${pid}')" style="font-size:11px;padding:2px 8px;border-radius:10px;background:transparent;border:1px solid var(--border);color:var(--text3);cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;" onmouseover="this.style.borderColor='#c0392b';this.style.color='#c0392b'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">삭제</button>` : ''}
         </div>
       </div>
       <div class="comment-text" id="cmt-text-${c.id}">${c.text}</div>
-      <div class="comment-time">${date}</div>
+      <div class="comment-time">${date}${c.editedAt?' · 수정됨':''}</div>
+
+      <!-- 답글 목록 -->
+      ${replies.length ? `
+      <div class="reply-list" id="reply-list-${c.id}">
+        ${replies.map(r => renderReply(r, c.id, pid)).join('')}
+      </div>` : `<div class="reply-list" id="reply-list-${c.id}" style="display:none;"></div>`}
+
+      <!-- 답글 입력창 (숨김) -->
+      <div id="reply-input-${c.id}" style="display:none;margin-top:8px;">
+        <div style="display:flex;gap:6px;align-items:flex-start;">
+          <div class="avatar" style="width:24px;height:24px;font-size:10px;flex-shrink:0;">${(window._me?.displayName||'?')[0].toUpperCase()}</div>
+          <div style="flex:1;">
+            <textarea id="reply-text-${c.id}" class="comment-input" placeholder="답글을 입력하세요..." style="min-height:44px;font-size:12px;" onkeydown="if(event.ctrlKey&&event.key==='Enter')submitReply('${c.id}','${pid}')"></textarea>
+            <div style="display:flex;gap:6px;margin-top:5px;">
+              <button onclick="submitReply('${c.id}','${pid}')" style="padding:5px 14px;border-radius:20px;background:var(--accent);border:none;color:white;font-size:12px;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">등록</button>
+              <button onclick="toggleReplyInput('${c.id}','${pid}')" style="padding:5px 10px;border-radius:20px;background:transparent;border:1px solid var(--border);color:var(--text2);font-size:12px;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">취소</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>`;
+}
+
+function renderReply(r, commentId, postId) {
+  const date = r.createdAt?.toDate ? r.createdAt.toDate().toLocaleDateString('ko') : (r.createdAt ? new Date(r.createdAt).toLocaleDateString('ko') : '');
+  const myId = window._me?.uid;
+  const canDelete = (myId && r.authorId === myId) || isAdmin();
+  return `<div class="reply-item" id="reply-${r.id}">
+    <div class="avatar" style="width:24px;height:24px;font-size:10px;flex-shrink:0;">${(r.author||'?')[0].toUpperCase()}</div>
+    <div style="flex:1;min-width:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;">
+        <span style="font-size:12px;font-weight:600;">${r.author||'익명'}</span>
+        ${canDelete ? `<button onclick="deleteReply('${r.id}','${commentId}','${postId}')" style="font-size:10px;padding:1px 7px;border-radius:10px;background:transparent;border:1px solid var(--border);color:var(--text3);cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;" onmouseover="this.style.borderColor='#c0392b';this.style.color='#c0392b'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">삭제</button>` : ''}
+      </div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.5;margin-top:2px;">${r.text}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px;">${date}</div>
+    </div>
+  </div>`;
+}
+
+function toggleReplyInput(commentId, postId) {
+  const input = document.getElementById('reply-input-' + commentId);
+  if (!input) return;
+  const isVisible = input.style.display !== 'none';
+  input.style.display = isVisible ? 'none' : 'block';
+  if (!isVisible) {
+    setTimeout(() => document.getElementById('reply-text-' + commentId)?.focus(), 100);
+  }
+}
+
+async function submitReply(commentId, postId) {
+  if (!window._me) { openAuth(); return; }
+  const input = document.getElementById('reply-text-' + commentId);
+  const text = input?.value.trim();
+  if (!text) { showToast('답글 내용을 입력해주세요', 'error'); return; }
+
+  const reply = {
+    text,
+    author: window._me.displayName || '회원',
+    authorId: window._me.uid,
+    createdAt: new Date()
+  };
+
+  if (window._fb) {
+    try {
+      const ref = await window._fb.addDoc(
+        window._fb.collection(window._fb.db, 'posts', postId, 'comments', commentId, 'replies'),
+        { ...reply, createdAt: window._fb.serverTimestamp() }
+      );
+      reply.id = ref.id;
+    } catch(e) { showToast('답글 등록 실패: ' + e.message, 'error'); return; }
+  } else {
+    reply.id = 'lr_' + Date.now();
+  }
+
+  // 로컬 업데이트
+  const c = currentComments.find(x => x.id === commentId);
+  if (c) { c.replies = c.replies || []; c.replies.push(reply); }
+
+  // UI 업데이트
+  const replyList = document.getElementById('reply-list-' + commentId);
+  if (replyList) {
+    replyList.style.display = 'block';
+    replyList.innerHTML += renderReply(reply, commentId, postId);
+  }
+  if (input) input.value = '';
+  toggleReplyInput(commentId, postId);
+  showToast('✓ 답글이 등록됐습니다', 'success');
+}
+
+async function deleteReply(replyId, commentId, postId) {
+  if (!confirm('답글을 삭제할까요?')) return;
+  if (window._fb) {
+    try {
+      await window._fb.deleteDoc(
+        window._fb.doc(window._fb.db, 'posts', postId, 'comments', commentId, 'replies', replyId)
+      );
+    } catch(e) { showToast('삭제 실패: ' + e.message, 'error'); return; }
+  }
+  // 로컬 제거
+  const c = currentComments.find(x => x.id === commentId);
+  if (c) c.replies = (c.replies||[]).filter(r => r.id !== replyId);
+  document.getElementById('reply-' + replyId)?.remove();
+  showToast('답글이 삭제됐습니다', 'success');
 }
 
 function startEditComment(commentId, postId) {
