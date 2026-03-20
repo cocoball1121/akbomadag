@@ -86,6 +86,7 @@
       });
       await waitFn('updateAuthUI');
       if (user && window.loadAdmins) await window.loadAdmins();
+      if (user) await loadBookmarksFromCloud();
       if (window.updateAuthUI) window.updateAuthUI(user);
       if (user) {
         const modal = document.getElementById('auth-modal');
@@ -742,10 +743,27 @@ label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); 
       </div>
     </div>
   </div>
+  <!-- 북마크 -->
+  <div class="page" id="page-bookmarks">
+    <div style="padding:1.5rem;max-width:800px;">
+      <button class="back-btn" onclick="goHome()">← 뒤로</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-family:'Nanum Myeongjo',serif;font-size:22px;font-weight:700;">⭐ 북마크</div>
+          <div style="font-size:13px;color:var(--text2);margin-top:2px;" id="bm-count-label">저장한 악보</div>
+        </div>
+        <button onclick="clearAllBookmarks()" style="padding:6px 14px;border-radius:20px;background:transparent;border:1px solid var(--border);color:var(--text3);font-size:12px;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">전체 삭제</button>
+      </div>
+      <div id="bm-list"></div>
+      <div id="bm-empty" style="text-align:center;padding:4rem 1rem;color:var(--text3);display:none;">
+        <div style="font-size:48px;margin-bottom:12px;opacity:0.3;">⭐</div>
+        <div style="font-size:14px;font-weight:500;margin-bottom:6px;">아직 북마크한 악보가 없어요</div>
+        <div style="font-size:12px;">악보 카드의 ⭐ 버튼을 눌러 저장해보세요</div>
+      </div>
+    </div>
+  </div>
 
 </div>
-
-<!-- Category Manage Modal -->
 <div class="modal-overlay" id="cat-modal">
   <div class="modal" style="width:460px;">
     <div class="modal-title">⚙ 카테고리 관리</div>
@@ -819,9 +837,9 @@ label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); 
       <span class="tab-icon" style="font-size:28px;color:var(--accent);">＋</span>
       <span>올리기</span>
     </button>
-    <button class="tab-btn" id="tab-admin" onclick="mobileTab('admin',this)" ontouchend="event.preventDefault();mobileTab('admin',this)">
-      <span class="tab-icon">⚙️</span>
-      <span>관리</span>
+    <button class="tab-btn" id="tab-bookmarks" onclick="mobileTab('bookmarks',this)" ontouchend="event.preventDefault();mobileTab('bookmarks',this)">
+      <span class="tab-icon">⭐</span>
+      <span>북마크</span>
     </button>
     <button class="tab-btn" id="tab-me" onclick="mobileTab('me',this)" ontouchend="event.preventDefault();mobileTab('me',this)">
       <span class="tab-icon" id="tab-me-icon">👤</span>
@@ -1135,6 +1153,7 @@ function isAdmin() {
 async function init() {
   await loadCategories();
   await loadAdmins();
+  updateBookmarkBadge();
   renderNavCats();
   renderCatTabs();
   renderSidebarCats();
@@ -1360,6 +1379,7 @@ function renderPostCard(p) {
   const instruments = p.instruments || (p.instrument ? [p.instrument] : []);
   const instIcons = instruments.slice(0,4).map(i=>iicon(i)).join('');
   const partCount = (p.parts||[]).length;
+  const isBookmarked = bookmarks.includes(p.id);
   return `<div class="post-card" onclick="openPost('${p.id}')">
     <div class="post-card-inner">
       <div class="post-thumb" style="min-height:120px;">
@@ -1369,7 +1389,12 @@ function renderPostCard(p) {
         </div>
       </div>
       <div class="post-body">
-        <div class="post-cat">${p.category||''}</div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:4px;">
+          <div class="post-cat">${p.category||''}</div>
+          <button onclick="event.stopPropagation();toggleBookmark('${p.id}')" id="bm-btn-${p.id}"
+            style="background:none;border:none;font-size:16px;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0;touch-action:manipulation;opacity:${isBookmarked?'1':'0.35'};"
+            title="${isBookmarked?'북마크 해제':'북마크'}">${isBookmarked?'⭐':'☆'}</button>
+        </div>
         <div class="post-title">${p.title}</div>
         <div class="post-desc">${cleanDesc(p.desc, p.blogLinks)}</div>
         <div class="post-tags">
@@ -1498,6 +1523,10 @@ function renderDetail(p) {
     <div class="detail-actions">
       <button class="like-btn ${liked?'liked':''}" onclick="toggleLike('${p.id}')">
         ${liked?'❤':'🤍'} 좋아요 <span id="like-count">${p.likes||0}</span>
+      </button>
+      <button id="detail-bm-btn" onclick="toggleBookmark('${p.id}')"
+        style="display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:20px;font-size:13px;border:1px solid ${bookmarks.includes(p.id)?'rgba(184,92,42,0.3)':'var(--border2)'};background:${bookmarks.includes(p.id)?'var(--accent-bg)':'transparent'};color:${bookmarks.includes(p.id)?'var(--accent)':'var(--text2)'};cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">
+        ${bookmarks.includes(p.id)?'⭐ 저장됨':'☆ 북마크'}
       </button>
       ${(p.parts&&p.parts.some(pt=>pt.fileData))?`
         <button onclick="downloadAllParts('${p.id}')" style="display:flex;align-items:center;gap:6px;padding:7px 16px;border-radius:20px;background:var(--accent);border:none;color:white;font-size:13px;font-weight:500;cursor:pointer;font-family:'Pretendard',sans-serif;transition:all 0.12s;" onmouseover="this.style.background='var(--accent2)'" onmouseout="this.style.background='var(--accent)'">
@@ -2069,6 +2098,141 @@ function showToast(msg,type=''){
   setTimeout(()=>t.className='toast',2800);
 }
 
+// ── 북마크 ──
+let bookmarks = JSON.parse(localStorage.getItem('sk_bookmarks') || '[]'); // [postId, ...]
+
+function saveBookmarks() {
+  localStorage.setItem('sk_bookmarks', JSON.stringify(bookmarks));
+  // Firebase에도 저장 (로그인 시)
+  if (window._fb && window._me) {
+    window._fb.setDoc(
+      window._fb.doc(window._fb.db, 'users', window._me.uid),
+      { bookmarks, updatedAt: window._fb.serverTimestamp() },
+      { merge: true }
+    ).catch(()=>{});
+  }
+  updateBookmarkBadge();
+}
+
+async function loadBookmarksFromCloud() {
+  if (!window._fb || !window._me) return;
+  try {
+    const snap = await window._fb.getDoc(window._fb.doc(window._fb.db, 'users', window._me.uid));
+    if (snap.exists() && snap.data().bookmarks) {
+      // 로컬과 클라우드 병합
+      const cloud = snap.data().bookmarks;
+      bookmarks = [...new Set([...bookmarks, ...cloud])];
+      saveBookmarks();
+    }
+  } catch(e) {}
+}
+
+function toggleBookmark(postId) {
+  const idx = bookmarks.indexOf(postId);
+  if (idx === -1) {
+    bookmarks.push(postId);
+    showToast('⭐ 북마크에 저장됐어요!', 'success');
+  } else {
+    bookmarks.splice(idx, 1);
+    showToast('북마크가 해제됐어요', '');
+  }
+  saveBookmarks();
+  // 버튼 즉시 업데이트
+  const btn = document.getElementById('bm-btn-' + postId);
+  if (btn) {
+    const isNow = bookmarks.includes(postId);
+    btn.textContent = isNow ? '⭐' : '☆';
+    btn.style.opacity = isNow ? '1' : '0.35';
+    btn.title = isNow ? '북마크 해제' : '북마크';
+  }
+  // 상세 화면 버튼도 업데이트
+  const detailBtn = document.getElementById('detail-bm-btn');
+  if (detailBtn) {
+    const isNow = bookmarks.includes(postId);
+    detailBtn.textContent = isNow ? '⭐ 저장됨' : '☆ 북마크';
+    detailBtn.style.background = isNow ? 'var(--accent-bg)' : 'transparent';
+    detailBtn.style.borderColor = isNow ? 'rgba(184,92,42,0.3)' : 'var(--border2)';
+    detailBtn.style.color = isNow ? 'var(--accent)' : 'var(--text2)';
+  }
+}
+
+function updateBookmarkBadge() {
+  const badge = document.getElementById('bm-tab-badge');
+  if (badge) {
+    badge.textContent = bookmarks.length;
+    badge.style.display = bookmarks.length ? 'inline' : 'none';
+  }
+}
+
+async function showBookmarks() {
+  showPage('bookmarks');
+  const listEl = document.getElementById('bm-list');
+  const emptyEl = document.getElementById('bm-empty');
+  const countEl = document.getElementById('bm-count-label');
+  if (!bookmarks.length) {
+    listEl.innerHTML = '';
+    emptyEl.style.display = 'block';
+    if (countEl) countEl.textContent = '저장한 악보 0개';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  if (countEl) countEl.textContent = `저장한 악보 ${bookmarks.length}개`;
+  listEl.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--text3);font-size:13px;">불러오는 중...</div>';
+
+  // postId 기준으로 악보 불러오기
+  let posts = [];
+  if (window._fb) {
+    try {
+      // Firestore에서 id 기준 조회 (최대 10개씩)
+      const chunks = [];
+      for (let i = 0; i < bookmarks.length; i += 10) chunks.push(bookmarks.slice(i, i+10));
+      for (const chunk of chunks) {
+        const q = window._fb.query(
+          window._fb.collection(window._fb.db, 'posts'),
+          window._fb.where('__name__', 'in', chunk)
+        );
+        const snap = await window._fb.getDocs(q);
+        snap.forEach(d => posts.push({ id: d.id, ...d.data() }));
+      }
+    } catch(e) {
+      posts = demoPosts.filter(p => bookmarks.includes(p.id));
+    }
+  } else {
+    posts = demoPosts.filter(p => bookmarks.includes(p.id));
+  }
+
+  // bookmarks 순서대로 정렬
+  posts.sort((a,b) => bookmarks.indexOf(a.id) - bookmarks.indexOf(b.id));
+
+  if (!posts.length) {
+    listEl.innerHTML = '';
+    emptyEl.style.display = 'block';
+    return;
+  }
+
+  listEl.innerHTML = posts.map(p => {
+    const instruments = p.instruments||(p.instrument?[p.instrument]:[]);
+    const date = p.createdAt?.toDate?p.createdAt.toDate().toLocaleDateString('ko'):(p.createdAt?new Date(p.createdAt).toLocaleDateString('ko'):'');
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;cursor:pointer;transition:all 0.12s;" onclick="openPost('${p.id}')" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="width:48px;height:48px;border-radius:var(--radius-sm);background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">${instruments.slice(0,2).map(i=>iicon(i)).join('')||'🎼'}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.title}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">${p.category||''} · 👤 ${p.author||'익명'} · ❤ ${p.likes||0} · ${date}</div>
+      </div>
+      <button onclick="event.stopPropagation();toggleBookmark('${p.id}');showBookmarks()" style="padding:5px 10px;border-radius:20px;background:var(--accent-bg);border:1px solid rgba(184,92,42,0.2);color:var(--accent);font-size:11px;cursor:pointer;font-family:'Pretendard',sans-serif;flex-shrink:0;touch-action:manipulation;">⭐ 해제</button>
+    </div>`;
+  }).join('');
+}
+
+function clearAllBookmarks() {
+  if (!bookmarks.length) return;
+  if (!confirm(`북마크 ${bookmarks.length}개를 모두 삭제할까요?`)) return;
+  bookmarks = [];
+  saveBookmarks();
+  showBookmarks();
+  showToast('북마크를 모두 삭제했어요', '');
+}
+
 // ── 모바일 하단 탭 ──
 function mobileTab(tab, el) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -2076,10 +2240,7 @@ function mobileTab(tab, el) {
   if (tab === 'home') { goHome(); }
   else if (tab === 'search') { showSearchPage(); }
   else if (tab === 'upload') { startUpload(); }
-  else if (tab === 'admin') {
-    if (isAdmin()) showAdminPage();
-    else openCatManage();
-  }
+  else if (tab === 'bookmarks') { showBookmarks(); }
   else if (tab === 'me') {
     if (window._me) {
       showMyPage();
