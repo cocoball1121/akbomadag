@@ -676,39 +676,60 @@ label { display: block; font-size: 11px; font-weight: 700; color: var(--text2); 
 
 <!-- Share Modal -->
 <div class="modal-overlay" id="share-modal">
-  <div class="modal" style="width:400px;">
+  <div class="modal" style="width:380px;">
     <div class="modal-title">🔗 악보 공유</div>
-    <div id="share-post-title" style="font-size:14px;color:var(--text2);margin-bottom:1.2rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+    <div id="share-post-title" style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:1.2rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
 
-    <!-- 링크 복사 -->
-    <div style="display:flex;gap:8px;margin-bottom:1rem;">
-      <input type="text" id="share-url-input" readonly
-        style="flex:1;padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--bg);font-size:12px;color:var(--text2);outline:none;font-family:monospace;">
-      <button onclick="copyShareLink()" id="share-copy-btn"
-        style="padding:10px 16px;border-radius:var(--radius-sm);background:var(--accent);border:none;color:white;font-size:13px;font-weight:500;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;white-space:nowrap;">
-        복사
-      </button>
-    </div>
+    <!-- 기기 공유 (안드로이드/iOS 네이티브) — 최우선 -->
+    <button onclick="shareNativeOrCopy()" id="share-native-btn"
+      style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px;border-radius:var(--radius-sm);background:var(--accent);border:none;color:white;font-size:14px;font-weight:600;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;margin-bottom:10px;">
+      📤 공유하기
+    </button>
 
-    <!-- SNS 공유 버튼들 -->
+    <div class="divider">또는 직접 선택</div>
+
+    <!-- SNS 버튼 2x2 그리드 -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1rem;">
-      <button onclick="shareKakao()" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:var(--radius-sm);background:#FEE500;border:none;color:#3C1E1E;font-size:13px;font-weight:600;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">
+
+      <!-- 카카오톡 -->
+      <button onclick="shareKakao()"
+        style="display:flex;align-items:center;justify-content:center;gap:7px;padding:12px;border-radius:var(--radius-sm);background:#FEE500;border:none;color:#3C1E1E;font-size:13px;font-weight:700;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="#3C1E1E"><path d="M12 3C6.477 3 2 6.477 2 10.5c0 2.47 1.388 4.65 3.5 6.02L4.5 21l4.5-2.5c.98.27 2 .5 3 .5 5.523 0 10-3.477 10-7.5S17.523 3 12 3z"/></svg>
         카카오톡
       </button>
-      <button onclick="shareTwitter()" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:var(--radius-sm);background:#000;border:none;color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-        X (트위터)
+
+      <!-- 네이버 밴드 -->
+      <button onclick="shareBand()"
+        style="display:flex;align-items:center;justify-content:center;gap:7px;padding:12px;border-radius:var(--radius-sm);background:#00C73C;border:none;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><circle cx="12" cy="12" r="10"/><path fill="#00C73C" d="M8 8h2.5l1.5 4 1.5-4H16v8h-2v-4.5L12.5 16h-1L10 11.5V16H8z"/></svg>
+        네이버 밴드
       </button>
-      <button onclick="shareNativeOrCopy()" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">
-        📱 기기 공유
-      </button>
-      <button onclick="shareSMS()" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">
+
+      <!-- 문자 -->
+      <button onclick="shareSMS()"
+        style="display:flex;align-items:center;justify-content:center;gap:7px;padding:12px;border-radius:var(--radius-sm);background:var(--bg2);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">
         💬 문자 전송
+      </button>
+
+      <!-- X(트위터) -->
+      <button onclick="shareTwitter()"
+        style="display:flex;align-items:center;justify-content:center;gap:7px;padding:12px;border-radius:var(--radius-sm);background:#000;border:none;color:white;font-size:13px;font-weight:500;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        X (트위터)
       </button>
     </div>
 
-    <div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:0.8rem;">링크를 받은 사람은 로그인 없이도 악보를 볼 수 있어요</div>
+    <!-- 링크 복사 -->
+    <div style="display:flex;gap:8px;margin-bottom:0.8rem;">
+      <input type="text" id="share-url-input" readonly
+        style="flex:1;padding:9px 12px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--bg);font-size:11px;color:var(--text3);outline:none;font-family:monospace;">
+      <button onclick="copyShareLink()" id="share-copy-btn"
+        style="padding:9px 16px;border-radius:var(--radius-sm);background:transparent;border:1px solid var(--border2);color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;white-space:nowrap;">
+        📋 복사
+      </button>
+    </div>
+
+    <div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:0.8rem;">로그인 없이도 악보를 볼 수 있어요</div>
     <button class="modal-close" onclick="document.getElementById('share-modal').classList.remove('open')">닫기</button>
   </div>
 </div>
@@ -2492,9 +2513,24 @@ function copyShareLink() {
 }
 
 function shareKakao() {
-  // 카카오 SDK 없이 카카오톡 공유 URL 방식
+  // 카카오링크 URL 스킴 — 앱 키 없이 카카오톡으로 공유
   const text = encodeURIComponent(`🎼 ${sharePostTitle}\n\n악보마당에서 확인해보세요!\n${sharePostUrl}`);
-  window.open(`https://story.kakao.com/share?url=${encodeURIComponent(sharePostUrl)}`, '_blank');
+  // 모바일: 카카오톡 앱으로 직접 공유
+  if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+    window.location.href = `kakaolink://send?msg=${text}`;
+    // 앱이 없으면 웹으로 폴백
+    setTimeout(() => {
+      window.open(`https://sharer.kakao.com/talk/friends/picker/link?url=${encodeURIComponent(sharePostUrl)}&text=${text}`, '_blank');
+    }, 1500);
+  } else {
+    window.open(`https://sharer.kakao.com/talk/friends/picker/link?url=${encodeURIComponent(sharePostUrl)}`, '_blank', 'width=500,height=600');
+  }
+}
+
+function shareBand() {
+  const text = encodeURIComponent(`🎼 ${sharePostTitle}\n악보마당에서 확인해보세요!`);
+  const url = encodeURIComponent(sharePostUrl);
+  window.open(`https://band.us/plugin/share?body=${text}&route=${url}`, '_blank', 'width=500,height=500');
 }
 
 function shareTwitter() {
@@ -2511,15 +2547,17 @@ async function shareNativeOrCopy() {
   if (navigator.share) {
     try {
       await navigator.share({
-        title: `🎼 ${sharePostTitle} - 악보마당`,
+        title: `🎼 ${sharePostTitle} — 악보마당`,
         text: '악보마당에서 악보를 확인해보세요!',
         url: sharePostUrl
       });
-    } catch(e) {}
-  } else {
-    copyShareLink();
-    showToast('✓ 링크가 복사됐어요!', 'success');
+      return;
+    } catch(e) {
+      if (e.name === 'AbortError') return; // 사용자가 취소
+    }
   }
+  // Web Share API 미지원 시 링크 복사
+  copyShareLink();
 }
 
 // URL 해시로 직접 악보 열기
