@@ -923,13 +923,14 @@ label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
 <script>
-// 스크립트 로딩 전 클릭 방지용 임시 스텁 (메인 스크립트 로드 후 자동 교체됨)
+// 스크립트 로딩 전 클릭 방지용 임시 스텁
 window._stubReady = false;
-window.goHome = function() { if(window._stubReady) return; location.reload(); };
+// goHome: 메인 스크립트 로드 후 실제 함수로 교체됨
+window.goHome = function() { location.reload(); };
 window.showSearchPage = function() {};
 window.openCatManage = function() {};
 window.showAdminPage = function() {};
-// openAuth: 모달 직접 열기 (스텁도 작동하도록)
+// openAuth: 모달 직접 열기
 window.openAuth = function() {
   var m = document.getElementById('auth-modal');
   if (m) m.classList.add('open');
@@ -2600,7 +2601,6 @@ async function confirmDeleteMyPost(id, title) {
 }
 
 setTimeout(init, 100);
-window._stubReady = true;
 
 // ── PWA: Service Worker 등록 ──
 if ('serviceWorker' in navigator) {
