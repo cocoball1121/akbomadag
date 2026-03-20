@@ -662,7 +662,8 @@ label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); 
     </div>
   </div>
 
-</div>
+  <!-- 검색 -->
+  <div class="page" id="page-search">
     <div style="padding:1.5rem;">
       <button class="back-btn" onclick="goHome()">← 뒤로</button>
       <div style="display:flex;gap:8px;margin-bottom:1.5rem;">
@@ -670,6 +671,60 @@ label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); 
         <button class="btn btn-accent" onclick="runSearch()">검색</button>
       </div>
       <div id="search-results"></div>
+    </div>
+  </div>
+
+  <!-- 마이페이지 -->
+  <div class="page" id="page-mypage">
+    <div style="padding:1.5rem;max-width:800px;">
+      <button class="back-btn" onclick="goHome()">← 뒤로</button>
+
+      <!-- 프로필 헤더 -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1rem;box-shadow:var(--shadow);">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div id="my-avatar-large" style="width:64px;height:64px;border-radius:50%;background:var(--accent-bg);border:2px solid rgba(184,92,42,0.2);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:var(--accent);flex-shrink:0;overflow:hidden;"></div>
+          <div style="flex:1;min-width:0;">
+            <div id="my-display-name" style="font-family:'Nanum Myeongjo',serif;font-size:22px;font-weight:700;margin-bottom:4px;"></div>
+            <div id="my-email" style="font-size:13px;color:var(--text2);"></div>
+            <div id="my-badge-row" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;"></div>
+          </div>
+          <button onclick="handleUserClick()" style="padding:8px 16px;border-radius:20px;background:transparent;border:1px solid var(--border2);color:var(--text2);font-size:13px;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">로그아웃</button>
+        </div>
+
+        <!-- 통계 -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:1.2rem;padding-top:1.2rem;border-top:1px solid var(--border);">
+          <div style="text-align:center;">
+            <div id="my-stat-posts" style="font-family:'Nanum Myeongjo',serif;font-size:24px;font-weight:700;color:var(--accent);">0</div>
+            <div style="font-size:11px;color:var(--text3);">올린 악보</div>
+          </div>
+          <div style="text-align:center;">
+            <div id="my-stat-likes" style="font-family:'Nanum Myeongjo',serif;font-size:24px;font-weight:700;color:var(--accent);">0</div>
+            <div style="font-size:11px;color:var(--text3);">받은 좋아요</div>
+          </div>
+          <div style="text-align:center;">
+            <div id="my-stat-comments" style="font-family:'Nanum Myeongjo',serif;font-size:24px;font-weight:700;color:var(--accent);">0</div>
+            <div style="font-size:11px;color:var(--text3);">받은 댓글</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 내가 올린 악보 -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem 1.4rem;box-shadow:var(--shadow);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:14px;font-weight:600;">내가 올린 악보</div>
+          <div style="display:flex;gap:6px;">
+            <button onclick="myPageSort('latest')" id="my-sort-latest" style="padding:4px 12px;border-radius:20px;font-size:11px;border:1px solid var(--accent);background:var(--accent-bg);color:var(--accent);cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">최신순</button>
+            <button onclick="myPageSort('likes')" id="my-sort-likes" style="padding:4px 12px;border-radius:20px;font-size:11px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">인기순</button>
+          </div>
+        </div>
+        <div id="my-posts-grid"></div>
+        <div id="my-posts-empty" style="text-align:center;padding:3rem 1rem;color:var(--text3);display:none;">
+          <div style="font-size:36px;margin-bottom:10px;opacity:0.4;">🎼</div>
+          <div style="font-size:14px;">아직 올린 악보가 없어요</div>
+          <button onclick="startUpload()" style="margin-top:12px;padding:8px 20px;border-radius:20px;background:var(--accent);border:none;color:white;font-size:13px;cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">+ 첫 악보 올리기</button>
+        </div>
+        <div id="my-posts-loading" style="text-align:center;padding:2rem;color:var(--text3);font-size:13px;">불러오는 중...</div>
+      </div>
     </div>
   </div>
 
@@ -1109,7 +1164,7 @@ function updateAuthUI(user) {
     el.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px;">
         <button class="btn btn-accent" onclick="startUpload()" style="font-size:12px;padding:5px 12px;">+ 올리기</button>
-        <div onclick="handleUserClick()" style="width:34px;height:34px;border-radius:50%;background:var(--accent-bg);border:1px solid rgba(184,92,42,0.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--accent);cursor:pointer;" title="${name} — 클릭하여 로그아웃">${user.photoURL ? `<img src="${user.photoURL}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : initial}</div>
+        <div onclick="showMyPage()" style="width:34px;height:34px;border-radius:50%;background:var(--accent-bg);border:1px solid rgba(184,92,42,0.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--accent);cursor:pointer;touch-action:manipulation;" title="${name} — 마이페이지">${user.photoURL ? `<img src="${user.photoURL}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : initial}</div>
       </div>`;
   } else {
     el.innerHTML = `<button class="btn btn-outline"
@@ -2013,16 +2068,126 @@ function mobileTab(tab, el) {
   }
   else if (tab === 'me') {
     if (window._me) {
-      if (confirm((window._me.displayName||'사용자') + '님, 로그아웃 할까요?')) {
-        handleUserClick();
-      }
-      el.classList.remove('active');
+      showMyPage();
     } else {
       document.getElementById('auth-modal').classList.add('open');
       el.classList.remove('active');
     }
   }
 }
+// ── 마이페이지 ──
+let myPageSortMode = 'latest';
+
+async function showMyPage() {
+  if (!window._me) { document.getElementById('auth-modal').classList.add('open'); return; }
+  showPage('mypage');
+  renderMyProfile();
+  await loadMyPosts();
+}
+
+function renderMyProfile() {
+  const u = window._me;
+  if (!u) return;
+  const name = u.displayName || '회원';
+  const initial = name[0].toUpperCase();
+  const avatarEl = document.getElementById('my-avatar-large');
+  if (avatarEl) {
+    avatarEl.innerHTML = u.photoURL
+      ? `<img src="${u.photoURL}" style="width:100%;height:100%;object-fit:cover;" alt="">`
+      : initial;
+  }
+  const nameEl = document.getElementById('my-display-name');
+  if (nameEl) nameEl.textContent = name;
+  const emailEl = document.getElementById('my-email');
+  if (emailEl) emailEl.textContent = u.email || '';
+  const badgeRow = document.getElementById('my-badge-row');
+  if (badgeRow) {
+    const badges = [];
+    if (isAdmin()) badges.push(`<span style="font-size:11px;padding:3px 10px;border-radius:10px;background:var(--accent-bg);color:var(--accent);border:1px solid rgba(184,92,42,0.2);">👑 관리자</span>`);
+    badges.push(`<span style="font-size:11px;padding:3px 10px;border-radius:10px;background:var(--bg2);color:var(--text2);border:1px solid var(--border);">🎼 회원</span>`);
+    badgeRow.innerHTML = badges.join('');
+  }
+}
+
+async function loadMyPosts() {
+  const loading = document.getElementById('my-posts-loading');
+  const grid = document.getElementById('my-posts-grid');
+  const empty = document.getElementById('my-posts-empty');
+  if (loading) loading.style.display = 'block';
+  if (grid) grid.innerHTML = '';
+  if (empty) empty.style.display = 'none';
+  let myPosts = [];
+  const uid = window._me?.uid;
+  if (window._fb) {
+    try {
+      const q = window._fb.query(
+        window._fb.collection(window._fb.db, 'posts'),
+        window._fb.where('authorId', '==', uid),
+        window._fb.orderBy('createdAt', 'desc')
+      );
+      const snap = await window._fb.getDocs(q);
+      snap.forEach(d => myPosts.push({ id: d.id, ...d.data() }));
+    } catch(e) {
+      try {
+        const snap = await window._fb.getDocs(window._fb.collection(window._fb.db, 'posts'));
+        snap.forEach(d => { const p={id:d.id,...d.data()}; if(p.authorId===uid) myPosts.push(p); });
+      } catch(e2) {}
+    }
+  } else {
+    myPosts = demoPosts.filter(p => p.authorId===uid || p.author===(window._me?.displayName));
+  }
+  if (loading) loading.style.display = 'none';
+  const totalLikes = myPosts.reduce((s,p)=>s+(p.likes||0),0);
+  const totalComments = myPosts.reduce((s,p)=>s+(p.comments||0),0);
+  document.getElementById('my-stat-posts').textContent = myPosts.length;
+  document.getElementById('my-stat-likes').textContent = totalLikes;
+  document.getElementById('my-stat-comments').textContent = totalComments;
+  if (!myPosts.length) { if(empty) empty.style.display='block'; return; }
+  if (myPageSortMode==='likes') myPosts.sort((a,b)=>(b.likes||0)-(a.likes||0));
+  else myPosts.sort((a,b)=>{
+    const ad=a.createdAt?.toDate?a.createdAt.toDate():new Date(a.createdAt||0);
+    const bd=b.createdAt?.toDate?b.createdAt.toDate():new Date(b.createdAt||0);
+    return bd-ad;
+  });
+  if (grid) grid.innerHTML = myPosts.map(p => renderMyPostCard(p)).join('');
+}
+
+function renderMyPostCard(p) {
+  const date = p.createdAt?.toDate?p.createdAt.toDate().toLocaleDateString('ko'):(p.createdAt?new Date(p.createdAt).toLocaleDateString('ko'):'');
+  const instruments = p.instruments||(p.instrument?[p.instrument]:[]);
+  return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:0.5px solid var(--border);cursor:pointer;" onclick="openPost('${p.id}')">
+    <div style="width:48px;height:48px;border-radius:var(--radius-sm);background:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">${instruments.slice(0,2).map(i=>iicon(i)).join('')||'🎼'}</div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:14px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.title}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px;">${p.category||''} · ❤ ${p.likes||0} · 💬 ${p.comments||0} · ${date}</div>
+    </div>
+    <button onclick="event.stopPropagation();confirmDeleteMyPost('${p.id}','${(p.title||'').replace(/'/g,"\\'")}')" style="padding:5px 10px;border-radius:20px;background:transparent;border:1px solid rgba(212,90,90,0.25);color:var(--red);font-size:11px;cursor:pointer;font-family:'Pretendard',sans-serif;flex-shrink:0;touch-action:manipulation;">삭제</button>
+  </div>`;
+}
+
+function myPageSort(mode) {
+  myPageSortMode = mode;
+  ['latest','likes'].forEach(m => {
+    const btn = document.getElementById('my-sort-'+m);
+    if (!btn) return;
+    btn.style.borderColor = m===mode?'var(--accent)':'var(--border)';
+    btn.style.background = m===mode?'var(--accent-bg)':'transparent';
+    btn.style.color = m===mode?'var(--accent)':'var(--text2)';
+  });
+  loadMyPosts();
+}
+
+async function confirmDeleteMyPost(id, title) {
+  if (!confirm(`'${title}' 악보를 삭제할까요?`)) return;
+  if (window._fb) {
+    try { await window._fb.deleteDoc(window._fb.doc(window._fb.db,'posts',id)); } catch(e){}
+  } else {
+    demoPosts = demoPosts.filter(p=>p.id!==id);
+  }
+  showToast('삭제됐습니다','success');
+  loadMyPosts();
+}
+
 setTimeout(init, 100);
 window._stubReady = true;
 
