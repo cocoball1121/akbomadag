@@ -1,111 +1,74 @@
-// 악보마당 Service Worker
-const CACHE_NAME = 'akbomadag-v4';
-const STATIC_ASSETS = [
-  './manifest.json',
-  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
-];
-// HTML은 캐시하지 않음 — 항상 최신 버전 사용 (리다이렉트 로그인 호환)
+// 악보마당 Service Worker v5
+const CACHE_NAME = 'akbomadag-v5';
 
-// 설치: 핵심 파일 캐시
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      console.log('[SW] 캐시 설치 중...');
-      return cache.addAll(STATIC_ASSETS).catch(err => {
-        console.warn('[SW] 일부 파일 캐시 실패 (무시):', err);
-      });
-    }).then(() => self.skipWaiting())
-  );
+  console.log('[SW v5] 설치됨');
+  self.skipWaiting();
 });
 
-// 활성화: 오래된 캐시 삭제
+// 활성화 시 모든 이전 캐시 삭제 + 페이지 강제 새로고침
 self.addEventListener('activate', event => {
+  console.log('[SW v5] 활성화 — 이전 캐시 전체 삭제');
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys.filter(k => k !== CACHE_NAME).map(k => {
-          console.log('[SW] 오래된 캐시 삭제:', k);
-          return caches.delete(k);
-        })
+    caches.keys()
+      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window' })
+        .then(clients => clients.forEach(c => c.navigate(c.url)))
       )
-    ).then(() => self.clients.claim())
   );
 });
 
-// 요청 처리
+// 모든 요청 네트워크 우선 — 캐시로 인한 로그인 문제 방지
 self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
-  // HTML 파일 — 항상 네트워크 우선 (리다이렉트 로그인 호환)
-  if (event.request.destination === 'document' ||
-      url.pathname.endsWith('.html')) {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
-    );
-    return;
-  }
-
-  // Firebase, Google API — 항상 네트워크
+  // HTML, Firebase, Google 인증 — 무조건 네트워크
   if (
+    event.request.destination === 'document' ||
+    url.pathname.endsWith('.html') ||
     url.hostname.includes('firebase') ||
     url.hostname.includes('googleapis') ||
     url.hostname.includes('gstatic') ||
     url.hostname.includes('firebaseapp') ||
-    url.hostname.includes('accounts.google')
+    url.hostname.includes('google.com')
   ) {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
-    );
+    event.respondWith(fetch(event.request).catch(() => new Response('오프라인 상태예요', { status: 503 })));
     return;
   }
 
-  // 나머지 정적 파일 — Cache First
+  // 정적 리소스 — 네트워크 우선, 실패 시 캐시
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request).then(response => {
-        if (!response || response.status !== 200 || response.type === 'opaque') return response;
-        const toCache = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, toCache));
-        return response;
-      }).catch(() => caches.match('./score-community.html'));
-    })
+    fetch(event.request)
+      .then(res => {
+        if (res && res.status === 200) {
+          caches.open(CACHE_NAME).then(c => c.put(event.request, res.clone()));
+        }
+        return res;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
 
-// 푸시 알림 수신 (추후 사용)
+// 푸시 알림
 self.addEventListener('push', event => {
   if (!event.data) return;
-  const data = event.data.json();
-  const options = {
-    body: data.body || '새 악보가 올라왔어요!',
-    icon: './icon-192.png',
-    badge: './icon-192.png',
+  const d = event.data.json();
+  event.waitUntil(self.registration.showNotification(d.title || '악보마당', {
+    body: d.body || '새 악보가 올라왔어요!',
+    icon: './icon-192.png', badge: './icon-192.png',
     vibrate: [100, 50, 100],
-    data: { url: data.url || './score-community.html' },
-    actions: [
-      { action: 'open', title: '열기' },
-      { action: 'close', title: '닫기' }
-    ]
-  };
-  event.waitUntil(
-    self.registration.showNotification(data.title || '악보마당', options)
-  );
+    data: { url: d.url || './score-community.html' }
+  }));
 });
 
-// 알림 클릭 처리
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  if (event.action === 'close') return;
   const url = event.notification.data?.url || './score-community.html';
   event.waitUntil(
-    clients.matchAll({ type: 'window' }).then(clientList => {
-      for (const client of clientList) {
-        if (client.url.includes('score-community') && 'focus' in client) {
-          return client.focus();
-        }
-      }
+    clients.matchAll({ type: 'window' }).then(list => {
+      for (const c of list) if (c.url.includes('score-community') && 'focus' in c) return c.focus();
       return clients.openWindow(url);
     })
   );
