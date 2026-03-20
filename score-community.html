@@ -1384,6 +1384,14 @@ function renderNavCatUpload() {
 
 function selectCat(cat) {
   currentCat = cat;
+  // 현재 홈이 아니면 홈으로 이동
+  if (!document.getElementById('page-home').classList.contains('active')) {
+    showPage('home');
+    // 모바일 탭바 홈 활성화
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    const homeTab = document.getElementById('tab-home');
+    if (homeTab) homeTab.classList.add('active');
+  }
   renderNavCats(); renderCatTabs(); renderSidebarCats();
   loadPosts();
 }
