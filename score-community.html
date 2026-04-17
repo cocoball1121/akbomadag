@@ -525,7 +525,7 @@ label { display: block; font-size: 11px; font-weight: 700; color: var(--text2); 
           </div>
           <div id="instrument-parts-list" style="display:flex;flex-direction:column;gap:10px;"></div>
           <input type="file" id="part-file-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="partFileChosen(this)">
-          <div style="margin-top:8px;font-size:11px;color:var(--text3);">💡 각 악기별로 파일을 따로 올릴 수 있어요 · 파일당 700KB 이하 (Storage 승인 전 임시 제한)</div>
+          <div style="margin-top:8px;font-size:11px;color:var(--text3);">💡 각 악기별로 파일을 따로 올릴 수 있어요 · 파일당 최대 20MB</div>
         </div>
 
         <div style="display:flex;gap:10px;margin-top:1rem;">
@@ -814,7 +814,7 @@ label { display: block; font-size: 11px; font-weight: 700; color: var(--text2); 
       </div>
       <div id="edit-parts-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       <input type="file" id="edit-part-file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="editPartFileChosen(this)">
-      <div style="font-size:11px;color:var(--text3);margin-top:6px;">💡 파일을 새로 선택하면 교체돼요 · 700KB 이하</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px;">💡 파일을 새로 선택하면 교체돼요 · 최대 20MB</div>
     </div>
     <div style="display:flex;gap:8px;margin-top:1rem;">
       <button class="btn btn-accent" style="flex:1;padding:12px;" onclick="submitEdit()">저장하기</button>
@@ -1100,8 +1100,8 @@ function partFileChosen(input) {
   const p = instrumentParts.find(x=>x.id===activePartId);
   if (!p) return;
   const sizeBytes = f.size;
-  if (sizeBytes > 700*1024) {
-    p.sizeWarn = `파일 크기 ${Math.round(sizeBytes/1024)}KB — 700KB 초과, 저장 불가`;
+  if (sizeBytes > 20*1024*1024) {
+    p.sizeWarn = `파일 크기 ${(sizeBytes/1024/1024).toFixed(1)}MB — 20MB 초과`;
     p.sizeOk = null;
     renderInstrumentParts();
     input.value=''; return;
@@ -1109,7 +1109,7 @@ function partFileChosen(input) {
   p.fileName = f.name;
   p.fileType = f.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'img';
   p.sizeWarn = null;
-  p.sizeOk = `${Math.round(sizeBytes/1024)}KB / 700KB — 저장 가능`;
+  p.sizeOk = `${(sizeBytes/1024/1024).toFixed(1)}MB / 20MB — 저장 가능`;
   const reader = new FileReader();
   reader.onload = e => {
     p.fileData = e.target.result;
@@ -1888,8 +1888,8 @@ function editPartFileChosen(input) {
   const f = input.files[0];
   const idx = window._editPartIdx;
   if (idx === undefined || !editParts[idx]) return;
-  if (f.size > 700*1024) {
-    editParts[idx].sizeWarn = `${Math.round(f.size/1024)}KB — 700KB 초과`;
+  if (f.size > 20*1024*1024) {
+    editParts[idx].sizeWarn = `${(f.size/1024/1024).toFixed(1)}MB — 20MB 초과`;
     renderEditParts(); input.value=''; return;
   }
   editParts[idx].fileName = f.name;
@@ -1935,7 +1935,7 @@ async function submitEdit() {
       showToast('✓ 수정됐습니다!', 'success');
     } catch(e) {
       if (e.message?.includes('larger than') || e.message?.includes('exceeds')) {
-        showToast('파일 용량 초과 — 700KB 이하 파일을 사용해주세요', 'error'); return;
+        showToast('파일 용량 초과 — 20MB 이하 파일을 사용해주세요', 'error'); return;
       }
       showToast('저장 실패: ' + e.message, 'error'); return;
     }
@@ -2292,14 +2292,14 @@ function processUploadFile(f) {
   const sizeEl=document.getElementById('up-file-size');
   const sizeKB=Math.round(f.size/1024);
   const sizeMB=(f.size/1024/1024).toFixed(2);
-  const isOver=f.size>700*1024;
+  const isOver=f.size>20*1024*1024;
   sizeEl.style.display='block';
   sizeEl.style.background=isOver?'rgba(192,57,43,0.08)':'rgba(42,122,74,0.08)';
   sizeEl.style.color=isOver?'#c0392b':'#2a7a4a';
   sizeEl.style.border=`1px solid ${isOver?'rgba(192,57,43,0.2)':'rgba(42,122,74,0.2)'}`;
   sizeEl.textContent=isOver
     ? `⚠ 파일 크기: ${sizeMB}MB — 1MB를 초과해서 저장할 수 없어요`
-    : `✓ 파일 크기: ${sizeKB}KB / 700KB — 저장 가능`;
+    : `✓ 파일 크기: ${(f.size/1024/1024).toFixed(1)}MB / 20MB — 저장 가능`;
 
   const reader=new FileReader();
   reader.onload=e=>{
@@ -2330,7 +2330,7 @@ async function submitPost() {
   if(!window._me){openAuth();return;}
 
   // 파일 크기 체크
-  const oversized = instrumentParts.filter(p=>p.fileData && Math.round(p.fileData.length*0.75)>700*1024);
+  const oversized = instrumentParts.filter(p=>p.fileData && p.fileData.length > 20*1024*1024*1.37);
   if(oversized.length>0){showToast('1MB를 초과하는 파일이 있어요. 파일을 교체해주세요.','error');return;}
 
   const tags=document.getElementById('up-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
@@ -2377,7 +2377,7 @@ async function submitPost() {
       goHome();
     }catch(e){
       if(e.code==='invalid-argument'||e.message.includes('larger than')||e.message.includes('exceeds')){
-        showToast('파일 용량 초과 — 파일을 700KB 이하로 줄이거나 Storage 크레딧 승인 후 다시 시도해주세요.','error');
+        showToast('파일 용량 초과 — 20MB 이하 파일을 사용해주세요.','error');
       } else {
         showToast('업로드 실패: '+e.message,'error');
       }
