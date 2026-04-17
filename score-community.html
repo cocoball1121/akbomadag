@@ -1547,8 +1547,9 @@ async function openPost(id) {
   loadComments(id, post);
   loadRelated(post.category, id);
   // load first part PDF if exists
-  if (post.parts && post.parts.length > 0 && post.parts[0].fileData && post.parts[0].fileType==='pdf') {
-    loadDetailPDF(post.parts[0].fileData);
+  if (post.parts && post.parts.length > 0 && post.parts[0].fileType==='pdf') {
+    const src0 = post.parts[0].fileURL || post.parts[0].fileData;
+    if (src0) loadDetailPDF(src0);
   } else if (post.fileURL && post.fileType==='pdf') {
     loadDetailPDF(post.fileURL);
   }
@@ -1585,7 +1586,7 @@ function renderDetail(p) {
         ${p.parts.map((pt,i)=>`<button onclick="switchPartTab(${i},'${p.id}')" id="ptab-${i}" style="padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid ${i===0?'var(--accent)':'var(--border)'};background:${i===0?'var(--accent-bg)':'transparent'};color:${i===0?'var(--accent)':'var(--text2)'};cursor:pointer;font-family:'Pretendard',sans-serif;transition:all 0.12s;display:flex;align-items:center;gap:4px;">
             ${iicon(pt.instrument)} ${pt.instrument}
             ${pt.scoreType&&pt.scoreType!=='part'?`<span style="font-size:9px;padding:1px 5px;border-radius:8px;background:rgba(0,0,0,0.08);color:inherit;">${stypeLabel(pt.scoreType)}</span>`:''}
-            ${!pt.fileData?'<span style="font-size:9px;opacity:0.5;">(파일없음)</span>':''}
+            ${!(pt.fileData||pt.fileURL)?'<span style="font-size:9px;opacity:0.5;">(파일없음)</span>':''}
           </button>`).join('')}
       </div>
       <div id="part-viewer-wrap">
@@ -1640,7 +1641,7 @@ function renderDetail(p) {
         style="display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:20px;font-size:13px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">
         🔗 공유
       </button>
-      ${(p.parts&&p.parts.some(pt=>pt.fileData))?`
+      ${(p.parts&&p.parts.some(pt=>pt.fileData||pt.fileURL))?`
         <button onclick="downloadAllParts('${p.id}')" style="display:flex;align-items:center;gap:6px;padding:7px 16px;border-radius:20px;background:var(--accent);border:none;color:white;font-size:13px;font-weight:500;cursor:pointer;font-family:'Pretendard',sans-serif;transition:all 0.12s;" onmouseover="this.style.background='var(--accent2)'" onmouseout="this.style.background='var(--accent)'">
           ⬇ 전체 다운로드
         </button>`:''}
@@ -1650,17 +1651,17 @@ function renderDetail(p) {
       `:''}
     </div>
 
-    ${(p.parts&&p.parts.filter(pt=>pt.fileData).length>0)?`
+    ${(p.parts&&p.parts.filter(pt=>pt.fileData||pt.fileURL).length>0)?`
     <div style="margin-top:1rem;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;">
       <div style="padding:10px 14px;font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid var(--border);">⬇ 파트별 다운로드</div>
-      ${p.parts.filter(pt=>pt.fileData).map(pt=>`
+      ${p.parts.filter(pt=>pt.fileData||pt.fileURL).map(pt=>`
         <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--border);">
           <span style="font-size:18px;flex-shrink:0;">${iicon(pt.instrument)}</span>
           <div style="flex:1;">
             <div style="font-size:13px;font-weight:500;color:var(--text);">${pt.instrument}</div>
             <div style="font-size:11px;color:var(--text3);">${stypeIcon(pt.scoreType||'part')} ${stypeLabel(pt.scoreType||'part')} · ${pt.fileName||''} · ${pt.fileType?.toUpperCase()||''}</div>
           </div>
-          <a href="${pt.fileData}" download="${pt.fileName||pt.instrument+'.'+pt.fileType}" style="padding:6px 14px;border-radius:20px;background:var(--accent-bg);color:var(--accent);border:1px solid rgba(184,92,42,0.2);font-size:12px;font-weight:500;text-decoration:none;flex-shrink:0;transition:all 0.12s;" onmouseover="this.style.background='rgba(184,92,42,0.15)'" onmouseout="this.style.background='var(--accent-bg)'">⬇ 다운로드</a>
+          <a href="${pt.fileURL||pt.fileData}" download="${pt.fileName||pt.instrument+'.'+pt.fileType}" target="_blank" style="padding:6px 14px;border-radius:20px;background:var(--accent-bg);color:var(--accent);border:1px solid rgba(184,92,42,0.2);font-size:12px;font-weight:500;text-decoration:none;flex-shrink:0;transition:all 0.12s;" onmouseover="this.style.background='rgba(184,92,42,0.15)'" onmouseout="this.style.background='var(--accent-bg)'">⬇ 다운로드</a>
         </div>`).join('')}
     </div>`:''}
 `;
@@ -1671,7 +1672,7 @@ function renderDetail(p) {
 function downloadAllParts(postId) {
   const post = currentDetailPost || demoPosts.find(p=>p.id===postId);
   if (!post) return;
-  const parts = (post.parts||[]).filter(pt=>pt.fileData);
+  const parts = (post.parts||[]).filter(pt=>pt.fileData||pt.fileURL);
   if (parts.length === 0) { showToast('다운로드할 파일이 없어요', 'error'); return; }
   if (parts.length === 1) {
     // 단일 파일은 바로 다운로드
@@ -1683,7 +1684,7 @@ function downloadAllParts(postId) {
   showToast(`⬇ ${parts.length}개 파일 다운로드 시작...`, 'success');
   parts.forEach((pt, i) => {
     setTimeout(() => {
-      triggerDownload(pt.fileData, pt.fileName || `${post.title}_${pt.instrument}.${pt.fileType}`);
+      if (pt.fileURL) { window.open(pt.fileURL,'_blank'); } else { triggerDownload(pt.fileData, pt.fileName || `${post.title}_${pt.instrument}.${pt.fileType}`); }
     }, i * 500); // 0.5초 간격으로 순차 다운로드
   });
 }
@@ -1700,11 +1701,13 @@ function triggerDownload(dataURL, filename) {
 function renderPartViewer(pt, idx) {
   if (!pt) return '';
   const typeBadge = pt.scoreType ? `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--accent-bg);color:var(--accent);border:1px solid rgba(184,92,42,0.2);margin-left:6px;">${stypeIcon(pt.scoreType)} ${stypeLabel(pt.scoreType)}</span>` : '';
-  if (!pt.fileData) return `<div style="text-align:center;padding:2rem;color:var(--text3);font-size:13px;background:var(--bg2);border-radius:var(--radius-sm);">${iicon(pt.instrument)} ${pt.instrument} ${typeBadge}<br><br>파일 없음</div>`;
-  const dlBtn = `<a href="${pt.fileData}" download="${pt.fileName||pt.instrument+'.'+pt.fileType}" style="font-size:11px;padding:4px 10px;border-radius:6px;background:var(--accent-bg);color:var(--accent);border:1px solid rgba(184,92,42,0.2);text-decoration:none;margin-left:auto;">⬇ 다운로드</a>`;
+  const src = pt.fileURL || pt.fileData || null;
+  if (!src) return `<div style="text-align:center;padding:2rem;color:var(--text3);font-size:13px;background:var(--bg2);border-radius:var(--radius-sm);">${iicon(pt.instrument)} ${pt.instrument} ${typeBadge}<br><br>파일 없음</div>`;
+  const dlHref = pt.fileURL ? `href="${pt.fileURL}" target="_blank"` : `href="${pt.fileData}" download="${pt.fileName||pt.instrument+'.'+pt.fileType}"`;
+  const dlBtn = `<a ${dlHref} style="font-size:11px;padding:4px 10px;border-radius:6px;background:var(--accent-bg);color:var(--accent);border:1px solid rgba(184,92,42,0.2);text-decoration:none;margin-left:auto;">⬇ 다운로드</a>`;
   const header = `<div class="viewer-toolbar"><span style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;">${iicon(pt.instrument)} ${pt.instrument}${typeBadge}</span>`;
   if (pt.fileType==='img') {
-    return `<div class="score-viewer">${header}${dlBtn}</div><div style="padding:12px;background:var(--bg2);"><img src="${pt.fileData}" style="max-width:100%;border-radius:4px;" alt="${pt.instrument}"></div></div>`;
+    return `<div class="score-viewer">${header}${dlBtn}</div><div style="padding:12px;background:var(--bg2);"><img src="${src}" style="max-width:100%;border-radius:4px;" alt="${pt.instrument}"></div></div>`;
   } else if (pt.fileType==='pdf') {
     return `<div class="score-viewer">${header}<button onclick="pdfPrev()">◀</button><span id="pdf-pg" style="font-size:11px;color:var(--text2);">1/1</span><button onclick="pdfNext()">▶</button><button onclick="pdfZoom(-0.2)">−</button><button onclick="pdfZoom(0.2)">+</button>${dlBtn}</div><div style="padding:12px;background:var(--bg2);min-height:200px;display:flex;align-items:center;justify-content:center;"><canvas id="detail-canvas"></canvas></div></div>`;
   }
@@ -1726,7 +1729,8 @@ function switchPartTab(idx, postId) {
   });
   document.getElementById('part-viewer-wrap').innerHTML = renderPartViewer(pt, idx);
   detailPdf=null; detailPage=1; detailScale=1.2;
-  if (pt?.fileData && pt.fileType==='pdf' && window.pdfjsLib) loadDetailPDF(pt.fileData);
+  const ptSrc = pt?.fileURL || pt?.fileData;
+  if (ptSrc && pt.fileType==='pdf' && window.pdfjsLib) loadDetailPDF(ptSrc);
 }
 async function loadDetailPDF(url) {
   if (!window.pdfjsLib) return;
@@ -2369,18 +2373,31 @@ async function submitPost() {
 
   if(window._fb){
     try{
-      showToast('업로드 중...','');
-      post.createdAt=window._fb.serverTimestamp();
-      const docRef=await window._fb.addDoc(window._fb.collection(window._fb.db,'posts'),post);
-      post.id=docRef.id;
+      showToast('파일 업로드 중...','');
+      // Storage에 파일 업로드 후 URL로 교체
+      const uploadedParts = await Promise.all(parts.map(async (pt, i) => {
+        if (!pt.fileData) return pt;
+        try {
+          const ext = pt.fileType === 'pdf' ? 'pdf' : 'jpg';
+          const storRef = window._fb.ref(window._fb.stor, `posts/${window._me.uid}_${Date.now()}_${i}_${pt.instrument}.${ext}`);
+          await window._fb.uploadString(storRef, pt.fileData, 'data_url');
+          const url = await window._fb.getDownloadURL(storRef);
+          return { ...pt, fileURL: url, fileData: null, storageMode: 'storage' };
+        } catch(se) {
+          console.warn('Storage 업로드 실패, Base64 유지:', se.message);
+          return pt;
+        }
+      }));
+      post.parts = uploadedParts;
+      post.storageMode = uploadedParts.some(p=>p.storageMode==='storage') ? 'storage' : 'base64';
+      post.createdAt = window._fb.serverTimestamp();
+      showToast('Firestore 저장 중...','');
+      const docRef = await window._fb.addDoc(window._fb.collection(window._fb.db,'posts'), post);
+      post.id = docRef.id;
       showToast('✓ 악보가 올라갔어요!','success');
       goHome();
     }catch(e){
-      if(e.code==='invalid-argument'||e.message.includes('larger than')||e.message.includes('exceeds')){
-        showToast('파일 용량 초과 — 20MB 이하 파일을 사용해주세요.','error');
-      } else {
-        showToast('업로드 실패: '+e.message,'error');
-      }
+      showToast('업로드 실패: '+e.message,'error');
     }
   }else{
     post.id='demo_'+Date.now();
@@ -2554,23 +2571,36 @@ async function removeAdmin(idx) {
 async function migrateToStorage() {
   if(!window._fb||!window._me){console.log('로그인 필요');return;}
   if(!window._fb.stor){console.log('Storage 미설정');return;}
-  console.log('Storage 마이그레이션 시작...');
+  console.log('=== Storage 마이그레이션 시작 ===');
+  showToast('마이그레이션 시작...','');
   const snap=await window._fb.getDocs(window._fb.collection(window._fb.db,'posts'));
-  let count=0;
+  let migrated=0, skipped=0, failed=0;
   for(const d of snap.docs){
     const p=d.data();
-    if(p.storageMode==='base64'&&p.fileURL&&p.fileURL.startsWith('data:')){
-      try{
-        const storRef=window._fb.ref(window._fb.stor,`posts/${d.id}`);
-        await window._fb.uploadString(storRef,p.fileURL,'data_url');
+    const parts=p.parts||[];
+    const needsMigration=parts.some(pt=>pt.fileData&&pt.fileData.startsWith('data:'));
+    if(!needsMigration){skipped++;continue;}
+    try{
+      const updatedParts=await Promise.all(parts.map(async(pt,i)=>{
+        if(!pt.fileData||!pt.fileData.startsWith('data:'))return pt;
+        const ext=pt.fileType==='pdf'?'pdf':'jpg';
+        const storRef=window._fb.ref(window._fb.stor,`posts/${d.id}_part${i}_${pt.instrument}.${ext}`);
+        await window._fb.uploadString(storRef,pt.fileData,'data_url');
         const url=await window._fb.getDownloadURL(storRef);
-        await window._fb.updateDoc(window._fb.doc(window._fb.db,'posts',d.id),{fileURL:url,storageMode:'storage'});
-        count++;
-        console.log(`✓ ${p.title} 마이그레이션 완료 (${count}번째)`);
-      }catch(e){console.error(`✗ ${p.title} 실패:`,e.message);}
+        return{...pt,fileURL:url,fileData:null,storageMode:'storage'};
+      }));
+      await window._fb.updateDoc(window._fb.doc(window._fb.db,'posts',d.id),{parts:updatedParts,storageMode:'storage'});
+      migrated++;
+      console.log(`✓ [${migrated}] "${p.title}" — ${updatedParts.filter(pt=>pt.fileURL).length}개 파트 이전`);
+      showToast(`이전 중... ${migrated}개 완료`,'');
+    }catch(e){
+      failed++;
+      console.error(`✗ "${p.title}" 실패:`,e.message);
     }
   }
-  console.log(`마이그레이션 완료: ${count}개 파일 이전됨`);
+  const msg=`✓ 마이그레이션 완료: ${migrated}개 이전 / ${skipped}개 건너뜀 / ${failed}개 실패`;
+  console.log(msg);
+  showToast(msg,'success');
 }
 window.migrateToStorage=migrateToStorage;
 
