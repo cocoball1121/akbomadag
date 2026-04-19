@@ -1745,17 +1745,39 @@ async function renderDetailPdfPage() {
   const page = await detailPdf.getPage(detailPage);
   const canvas = document.getElementById('detail-canvas');
   if (!canvas) return;
-  const vp = page.getViewport({scale:detailScale});
-  canvas.width=vp.width; canvas.height=vp.height;
-  const maxW = canvas.parentElement?.clientWidth - 24 || 600;
-  if (vp.width > maxW) { const r=maxW/vp.width; canvas.style.width=maxW+'px'; canvas.style.height=(vp.height*r)+'px'; }
-  page.render({canvasContext:canvas.getContext('2d'),viewport:vp});
+
+  // 컨테이너 너비 정확히 계산
+  const container = canvas.parentElement;
+  const containerW = (container?.clientWidth || window.innerWidth) - 24;
+
+  // 먼저 scale=1로 원본 크기 확인
+  const vpBase = page.getViewport({scale: 1});
+  // 컨테이너에 맞게 스케일 계산 후 detailScale 적용
+  const fitScale = containerW / vpBase.width;
+  const finalScale = fitScale * detailScale;
+  const vp = page.getViewport({scale: finalScale});
+
+  // 고해상도(Retina) 지원
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = vp.width * dpr;
+  canvas.height = vp.height * dpr;
+  canvas.style.width = vp.width + 'px';
+  canvas.style.height = vp.height + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  page.render({canvasContext: ctx, viewport: vp});
+
   const el = document.getElementById('pdf-pg');
   if (el) el.textContent = `${detailPage}/${detailPdf.numPages}`;
 }
 function pdfPrev(){if(detailPdf&&detailPage>1){detailPage--;renderDetailPdfPage();}}
 function pdfNext(){if(detailPdf&&detailPage<detailPdf.numPages){detailPage++;renderDetailPdfPage();}}
 function pdfZoom(d){detailScale=Math.min(3,Math.max(0.5,detailScale+d));renderDetailPdfPage();}
+
+// 화면 크기 변경 시 PDF 재렌더링
+window.addEventListener('resize', () => { if (detailPdf) renderDetailPdfPage(); });
+window.addEventListener('orientationchange', () => { setTimeout(() => { if (detailPdf) renderDetailPdfPage(); }, 300); });
 
 async function toggleLike(postId) {
   if (!window._me) { openAuth(); return; }
