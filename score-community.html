@@ -1933,6 +1933,26 @@ async function submitEdit() {
   const tags = document.getElementById('edit-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
   const instruments = [...new Set(editParts.map(p=>p.instrument))];
 
+  // Storage 업로드 (새로 선택한 파일만)
+  showToast('저장 중...', '');
+  const uploadedParts = await Promise.all(editParts.map(async (p, i) => {
+    // 새 파일 선택됨 (Base64) → Storage 업로드
+    if (p.fileData && p.fileData.startsWith('data:') && window._fb?.stor) {
+      try {
+        const ext = p.fileType === 'pdf' ? 'pdf' : 'jpg';
+        const storRef = window._fb.ref(window._fb.stor, `posts/${editPostId}_part${i}_${p.instrument}_${Date.now()}.${ext}`);
+        await window._fb.uploadString(storRef, p.fileData, 'data_url');
+        const url = await window._fb.getDownloadURL(storRef);
+        return { ...p, fileURL: url, fileData: null, storageMode: 'storage' };
+      } catch(se) {
+        console.warn('Storage 업로드 실패:', se.message);
+        // Storage 실패 시 fileData 제거 (Firestore 크기 초과 방지)
+        return { ...p, fileData: null };
+      }
+    }
+    return p;
+  }));
+
   const updates = {
     title, category: cat,
     composer: document.getElementById('edit-composer').value.trim(),
@@ -1944,31 +1964,32 @@ async function submitEdit() {
     youtube: document.getElementById('edit-youtube').value.trim(),
     tags, instruments,
     blogLinks: editBlogLinks,
-    parts: editParts.map(p => {
+    parts: uploadedParts.map(p => {
       const pt = {
         id: p.id || ('ep_'+Date.now()),
         instrument: p.instrument || '피아노',
         scoreType: p.scoreType || 'part',
         fileName: p.fileName || '',
-        fileType: p.fileType || null,
-        fileData: p.fileData || null,
-        fileURL: p.fileURL || null,
-        storageMode: p.storageMode || null,
+        fileType: p.fileType || '',
+        fileURL: p.fileURL || '',
+        storageMode: p.storageMode || 'storage',
       };
-      // undefined/null 필드 제거 (Firestore 오류 방지)
-      Object.keys(pt).forEach(k => { if (pt[k] === null || pt[k] === undefined) delete pt[k]; });
+      // 빈 문자열 필드 제거
+      Object.keys(pt).forEach(k => { if (!pt[k]) delete pt[k]; });
       return pt;
     }),
   };
+
+  // updates에서 null/빈값 필드 제거
+  Object.keys(updates).forEach(k => {
+    if (updates[k] === null || updates[k] === '' || updates[k] === undefined) delete updates[k];
+  });
 
   if (window._fb) {
     try {
       await window._fb.updateDoc(window._fb.doc(window._fb.db, 'posts', editPostId), updates);
       showToast('✓ 수정됐습니다!', 'success');
     } catch(e) {
-      if (e.message?.includes('larger than') || e.message?.includes('exceeds')) {
-        
-      }
       showToast('저장 실패: ' + e.message, 'error'); return;
     }
   } else {
@@ -1977,7 +1998,6 @@ async function submitEdit() {
   }
 
   document.getElementById('edit-modal').classList.remove('open');
-  // 상세 화면 새로고침
   currentDetailPost = null;
   openPost(editPostId);
 }
