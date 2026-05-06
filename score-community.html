@@ -1944,12 +1944,21 @@ async function submitEdit() {
     youtube: document.getElementById('edit-youtube').value.trim(),
     tags, instruments,
     blogLinks: editBlogLinks,
-    parts: editParts.map(p => ({
-      id: p.id, instrument: p.instrument,
-      scoreType: p.scoreType||'part',
-      fileName: p.fileName||'', fileType: p.fileType||null,
-      fileData: p.fileData||null
-    })),
+    parts: editParts.map(p => {
+      const pt = {
+        id: p.id || ('ep_'+Date.now()),
+        instrument: p.instrument || '피아노',
+        scoreType: p.scoreType || 'part',
+        fileName: p.fileName || '',
+        fileType: p.fileType || null,
+        fileData: p.fileData || null,
+        fileURL: p.fileURL || null,
+        storageMode: p.storageMode || null,
+      };
+      // undefined/null 필드 제거 (Firestore 오류 방지)
+      Object.keys(pt).forEach(k => { if (pt[k] === null || pt[k] === undefined) delete pt[k]; });
+      return pt;
+    }),
   };
 
   if (window._fb) {
@@ -2359,14 +2368,19 @@ async function submitPost() {
   const tags=document.getElementById('up-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
 
   // parts 배열 구성 (fileData 포함)
-  const parts = instrumentParts.map(p=>({
-    id: p.id,
-    instrument: p.instrument,
-    scoreType: p.scoreType || 'part',
-    fileName: p.fileName||'',
-    fileType: p.fileType||null,
-    fileData: p.fileData||null
-  }));
+  const parts = instrumentParts.map(p => {
+    const pt = {
+      id: p.id || ('p_'+Date.now()),
+      instrument: p.instrument || '피아노',
+      scoreType: p.scoreType || 'part',
+      fileName: p.fileName || '',
+      fileType: p.fileType || null,
+      fileData: p.fileData || null,
+    };
+    // null/undefined 제거 (Firestore 오류 방지)
+    Object.keys(pt).forEach(k => { if (pt[k] === null || pt[k] === undefined) delete pt[k]; });
+    return pt;
+  });
 
   // 대표 악기 목록 (카드 표시용)
   const instruments = [...new Set(instrumentParts.map(p=>p.instrument))];
