@@ -1735,10 +1735,33 @@ function switchPartTab(idx, postId) {
 async function loadDetailPDF(url) {
   if (!window.pdfjsLib) return;
   try {
-    detailPdf = await pdfjsLib.getDocument(url).promise;
-    detailPage=1;
+    let loadParam;
+    if (url.startsWith('data:')) {
+      // Base64 데이터 — 직접 로드
+      loadParam = url;
+    } else {
+      // Storage URL — fetch로 ArrayBuffer 받아서 로드 (CORS 우회)
+      try {
+        const resp = await fetch(url);
+        const buffer = await resp.arrayBuffer();
+        loadParam = { data: buffer };
+      } catch(fe) {
+        // fetch 실패 시 URL 직접 시도
+        loadParam = { url, withCredentials: false };
+      }
+    }
+    detailPdf = await pdfjsLib.getDocument(loadParam).promise;
+    detailPage = 1;
     renderDetailPdfPage();
-  } catch(e) {}
+  } catch(e) {
+    console.error('PDF 로드 실패:', e);
+    // 캔버스 영역에 오류 메시지 표시
+    const canvas = document.getElementById('detail-canvas');
+    if (canvas) {
+      const parent = canvas.parentElement;
+      if (parent) parent.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--text3);font-size:13px;">PDF를 불러오지 못했어요.<br><a href="${url}" target="_blank" style="color:var(--accent);">↗ 새 탭에서 열기</a></div>`;
+    }
+  }
 }
 async function renderDetailPdfPage() {
   if (!detailPdf) return;
