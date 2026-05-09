@@ -1905,12 +1905,15 @@ function renderEditParts() {
     list.innerHTML = `<div style="text-align:center;padding:1rem;border:2px dashed var(--border2);border-radius:var(--radius-sm);color:var(--text3);font-size:13px;cursor:pointer;" onclick="addEditPart()">+ 악기 파트 추가</div>`;
     return;
   }
-  list.innerHTML = editParts.map((p,i) => `
+  list.innerHTML = editParts.map((p,i) => {
+    const hasFile = p.fileData || p.fileURL;
+    const fileName = p.fileName || (p.fileURL ? '파일 있음 (Storage)' : '');
+    return `
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
         <span style="font-size:18px;">${iicon(p.instrument)}</span>
         <select onchange="editParts[${i}].instrument=this.value;renderEditParts()" style="flex:1;padding:6px 10px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface);font-size:13px;font-family:'Pretendard',sans-serif;color:var(--text);outline:none;">
-          ${INSTRUMENTS_LIST.map(ins=>`<option${ins===p.instrument?' selected':''}>${iicon(ins)} ${ins}</option>`).join('')}
+          ${INSTRUMENTS_LIST.map(ins=>`<option value="${ins}"${ins===p.instrument?' selected':''}>${iicon(ins)} ${ins}</option>`).join('')}
         </select>
         <button onclick="editParts.splice(${i},1);renderEditParts()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;touch-action:manipulation;" onmouseover="this.style.color='#c0392b'" onmouseout="this.style.color='var(--text3)'">×</button>
       </div>
@@ -1918,13 +1921,14 @@ function renderEditParts() {
         ${SCORE_TYPES.map(t=>`<button onclick="editParts[${i}].scoreType='${t.value}';renderEditParts()" style="padding:3px 9px;border-radius:20px;font-size:11px;border:1px solid ${p.scoreType===t.value?'var(--accent)':'var(--border)'};background:${p.scoreType===t.value?'var(--accent-bg)':'transparent'};color:${p.scoreType===t.value?'var(--accent)':'var(--text2)'};cursor:pointer;font-family:'Pretendard',sans-serif;touch-action:manipulation;">${t.icon} ${t.label}</button>`).join('')}
       </div>
       <div style="display:flex;gap:6px;align-items:center;">
-        <button onclick="editActivePartId='${p.id||i}';window._editPartIdx=${i};document.getElementById('edit-part-file').click()" style="flex:1;padding:7px 10px;border-radius:var(--radius-sm);border:2px dashed ${p.fileData?'var(--accent)':'var(--border2)'};background:${p.fileData?'var(--accent-bg)':'transparent'};color:${p.fileData?'var(--accent)':'var(--text3)'};cursor:pointer;font-size:11px;font-family:'Pretendard',sans-serif;text-align:left;touch-action:manipulation;">
-          ${p.fileData ? `📄 ${p.fileName||'파일 있음'}` : '+ 파일 선택'}
+        <button onclick="editActivePartId='${p.id||i}';window._editPartIdx=${i};document.getElementById('edit-part-file').click()" style="flex:1;padding:7px 10px;border-radius:var(--radius-sm);border:2px dashed ${hasFile?'var(--accent)':'var(--border2)'};background:${hasFile?'var(--accent-bg)':'transparent'};color:${hasFile?'var(--accent)':'var(--text3)'};cursor:pointer;font-size:11px;font-family:'Pretendard',sans-serif;text-align:left;touch-action:manipulation;">
+          ${hasFile ? `📄 ${fileName}` : '+ 파일 선택'}
         </button>
-        ${p.fileData?`<button onclick="editParts[${i}].fileData=null;editParts[${i}].fileName='';renderEditParts()" style="padding:6px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;font-size:11px;font-family:'Pretendard',sans-serif;touch-action:manipulation;">삭제</button>`:''}
+        ${hasFile?`<button onclick="editParts[${i}].fileData=null;editParts[${i}].fileURL=null;editParts[${i}].fileName='';renderEditParts()" style="padding:6px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;font-size:11px;font-family:'Pretendard',sans-serif;touch-action:manipulation;">삭제</button>`:''}
       </div>
       ${p.sizeWarn?`<div style="font-size:11px;color:#c0392b;margin-top:4px;">⚠ ${p.sizeWarn}</div>`:''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function addEditPart() {
