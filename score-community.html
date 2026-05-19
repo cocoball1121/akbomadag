@@ -447,9 +447,14 @@ label { display: block; font-size: 11px; font-weight: 700; color: var(--text2); 
 
         <div class="form-row">
           <label>카테고리 *</label>
-          <select class="form-input" id="up-cat">
-            <option value="">선택하세요</option>
-          </select>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <select class="form-input" id="up-cat-main" onchange="onMainCatChange(this.value,'up-cat-sub')">
+              <option value="">대분류 선택</option>
+            </select>
+            <select class="form-input" id="up-cat-sub">
+              <option value="">소분류 (선택사항)</option>
+            </select>
+          </div>
         </div>
         <div class="form-row">
           <label>곡 제목 *</label>
@@ -741,7 +746,14 @@ label { display: block; font-size: 11px; font-weight: 700; color: var(--text2); 
     <div class="modal-title">✏️ 악보 수정</div>
     <div class="form-row">
       <label>카테고리 *</label>
-      <select class="form-input" id="edit-cat"></select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <select class="form-input" id="edit-cat-main" onchange="onMainCatChange(this.value,'edit-cat-sub')">
+          <option value="">대분류 선택</option>
+        </select>
+        <select class="form-input" id="edit-cat-sub">
+          <option value="">소분류 (선택사항)</option>
+        </select>
+      </div>
     </div>
     <div class="form-row">
       <label>곡 제목 *</label>
@@ -823,20 +835,32 @@ label { display: block; font-size: 11px; font-weight: 700; color: var(--text2); 
 </div>
 
 <div class="modal-overlay" id="cat-modal">
-  <div class="modal" style="width:460px;">
+  <div class="modal" style="width:500px;max-height:88vh;overflow-y:auto;">
     <div class="modal-title">⚙ 카테고리 관리</div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:1.2rem;">드래그로 순서를 바꾸고, 추가/삭제할 수 있어요.<br>변경사항은 모든 사용자에게 반영됩니다.</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:1rem;">대분류와 소분류를 관리해요. 변경사항은 모든 사용자에게 반영돼요.</div>
 
-    <div id="cat-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:1.2rem;"></div>
+    <!-- 대분류 선택 탭 -->
+    <div id="cat-main-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem;"></div>
 
-    <div style="display:flex;gap:8px;margin-bottom:1.2rem;">
-      <input type="text" id="new-cat-input" class="form-input" placeholder="새 카테고리 이름" style="flex:1;" onkeydown="if(event.key==='Enter')addCategory()">
-      <button class="btn btn-accent" onclick="addCategory()">+ 추가</button>
+    <!-- 현재 선택된 대분류의 소분류 목록 -->
+    <div id="cat-sub-section" style="background:var(--bg2);border-radius:var(--radius-sm);padding:12px;margin-bottom:1rem;">
+      <div id="cat-sub-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;min-height:40px;"></div>
+      <div style="display:flex;gap:6px;">
+        <input type="text" id="new-sub-input" class="form-input" placeholder="소분류 추가..." style="flex:1;font-size:13px;padding:7px 10px;" onkeydown="if(event.key==='Enter')addSubCat()">
+        <button class="btn btn-accent" onclick="addSubCat()" style="padding:7px 14px;font-size:12px;">+ 추가</button>
+      </div>
     </div>
 
-    <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:10px 14px;font-size:12px;color:var(--text3);margin-bottom:1.2rem;">
-      💡 '전체'는 삭제할 수 없어요. 카테고리를 삭제해도 기존 악보는 유지됩니다.
+    <!-- 대분류 추가 -->
+    <div style="border-top:1px solid var(--border);padding-top:1rem;margin-bottom:1rem;">
+      <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">대분류 추가</div>
+      <div style="display:flex;gap:6px;">
+        <input type="text" id="new-main-input" class="form-input" placeholder="새 대분류 이름..." style="flex:1;font-size:13px;padding:7px 10px;" onkeydown="if(event.key==='Enter')addMainCat()">
+        <button class="btn btn-outline" onclick="addMainCat()" style="padding:7px 14px;font-size:12px;">+ 추가</button>
+      </div>
     </div>
+
+    <div style="font-size:11px;color:var(--text3);margin-bottom:1rem;">💡 소분류 없이 대분류만 사용할 수도 있어요.</div>
 
     <div style="display:flex;gap:8px;">
       <button class="btn btn-accent" style="flex:1;padding:10px;" onclick="saveCatChanges()">저장하기</button>
@@ -935,8 +959,30 @@ window.openAuth = function() {
 if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 // ── DATA ──
-let CATEGORIES = JSON.parse(localStorage.getItem('sk_cats')||'null') || ['전체','클래식','찬송가','CCM','팝','재즈','동요','민요','기타'];
-let currentCat = '전체';
+// 카테고리: { 대분류: [소분류, ...], ... }
+let CAT_DATA = JSON.parse(localStorage.getItem('sk_cat_data')||'null') || {
+  '찬양팀': ['마커스', '어노인팅', '쏠라피데', '아이자야씩스티원', '예수전도단'],
+  '교회': ['주일예배', '찬양예배', '새벽예배'],
+  '기타': ['클래식', 'CCM', '팝', '동요']
+};
+let CATEGORIES = ['전체']; // 하위 호환용 (flat 목록)
+let currentCat = '전체';   // '전체' | '대분류' | '대분류/소분류'
+let currentMainCat = '전체';
+let currentSubCat = '';
+
+function flatCategories() {
+  const flat = ['전체'];
+  Object.entries(CAT_DATA).forEach(([main, subs]) => {
+    flat.push(main);
+    subs.forEach(s => flat.push(main+'/'+s));
+  });
+  return flat;
+}
+function getCatLabel(cat) {
+  if (!cat || cat==='전체') return '전체';
+  if (cat.includes('/')) { const [m,s]=cat.split('/'); return m+' › '+s; }
+  return cat;
+}
 let currentSort = 'latest';
 // ── BLOG LINKS ──
 let blogLinks = []; // [{url, label, type}]
@@ -1240,7 +1286,7 @@ async function saveCategories() {
   localStorage.setItem('sk_cats', JSON.stringify(CATEGORIES));
   if (window._fb) {
     try {
-      await window._fb.setDoc(window._fb.doc(window._fb.db, 'settings', 'categories'), { list: CATEGORIES, updatedAt: window._fb.serverTimestamp() });
+      await window._fb.setDoc(window._fb.doc(window._fb.db, 'settings', 'categories'), { catData: CAT_DATA, updatedAt: window._fb.serverTimestamp() });
     } catch(e) { showToast('클라우드 저장 실패: ' + e.message, 'error'); }
   }
 }
@@ -1387,21 +1433,42 @@ async function handleUserClick() {
 
 // ── NAV / CATS ──
 function renderNavCats() {
-  document.getElementById('nav-cats').innerHTML = CATEGORIES.map(c =>
-    `<button class="nav-cat-btn ${c===currentCat?'active':''}" onclick="selectCat('${c}')">${c}</button>`
-  ).join('');
+  const mains = ['전체', ...Object.keys(CAT_DATA)];
+  document.getElementById('nav-cats').innerHTML = mains.map(c => {
+    const isActive = c==='전체' ? currentMainCat==='전체' : currentMainCat===c;
+    return `<button class="nav-cat-btn ${isActive?'active':''}" onclick="selectMainCat('${c}')">${c}</button>`;
+  }).join('');
 }
 
 function renderCatTabs() {
-  document.getElementById('cat-tabs').innerHTML = CATEGORIES.map(c =>
-    `<button onclick="selectCat('${c}')" style="padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid ${c===currentCat?'var(--accent)':'var(--border)'};background:${c===currentCat?'var(--accent-bg)':'transparent'};color:${c===currentCat?'var(--accent)':'var(--text2)'};cursor:pointer;font-family:'Pretendard',sans-serif;transition:all 0.12s;">${c}</button>`
-  ).join('');
+  const mains = ['전체', ...Object.keys(CAT_DATA)];
+  const mainHtml = mains.map(c => {
+    const isActive = c==='전체' ? currentMainCat==='전체' : currentMainCat===c;
+    return `<button onclick="selectMainCat('${c}')" style="padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid ${isActive?'var(--accent)':'var(--border)'};background:${isActive?'var(--accent-bg)':'transparent'};color:${isActive?'var(--accent)':'var(--text2)'};cursor:pointer;font-family:'Pretendard',sans-serif;transition:all 0.12s;white-space:nowrap;">${c}</button>`;
+  }).join('');
+
+  // 소분류 탭
+  let subHtml = '';
+  if (currentMainCat !== '전체' && CAT_DATA[currentMainCat]) {
+    const subs = ['전체', ...CAT_DATA[currentMainCat]];
+    subHtml = `<div style="display:flex;gap:5px;flex-wrap:nowrap;overflow-x:auto;padding:6px 0 4px;border-top:1px solid var(--border);margin-top:4px;scrollbar-width:none;" id="sub-cat-tabs">
+      ${subs.map(s => {
+        const key = s==='전체' ? currentMainCat : currentMainCat+'/'+s;
+        const isActive = s==='전체' ? currentSubCat==='' : currentSubCat===s;
+        return `<button onclick="selectSubCat('${s}')" style="padding:4px 11px;border-radius:20px;font-size:11px;border:1px solid ${isActive?'var(--accent)':'var(--border2)'};background:${isActive?'var(--accent-bg)':'transparent'};color:${isActive?'var(--accent)':'var(--text2)'};cursor:pointer;font-family:'Pretendard',sans-serif;white-space:nowrap;flex-shrink:0;">${s}</button>`;
+      }).join('')}
+    </div>`;
+  }
+  document.getElementById('cat-tabs').innerHTML = `<div style="display:flex;gap:5px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;">${mainHtml}</div>${subHtml}`;
 }
 
 function renderSidebarCats() {
-  document.getElementById('sidebar-cats').innerHTML = CATEGORIES.slice(1).map(c =>
-    `<div class="side-item" onclick="selectCat('${c}')"><span>${c}</span></div>`
-  ).join('');
+  const sideItems = [];
+  Object.entries(CAT_DATA).forEach(([main, subs]) => {
+    sideItems.push(`<div class="side-item" style="font-weight:600;color:var(--text);" onclick="selectMainCat('${main}')"><span>📁 ${main}</span></div>`);
+    subs.forEach(s => sideItems.push(`<div class="side-item" style="padding-left:16px;" onclick="selectMainCat('${main}');selectSubCat('${s}')"><span style="color:var(--text2);">${s}</span></div>`));
+  });
+  document.getElementById('sidebar-cats').innerHTML = sideItems.join('');
 }
 
 function renderNavCatUpload() {
@@ -1410,21 +1477,30 @@ function renderNavCatUpload() {
   sel.innerHTML = '<option value="">선택하세요</option>' + CATEGORIES.slice(1).map(c=>`<option>${c}</option>`).join('');
 }
 
-function selectCat(cat) {
-  currentCat = cat;
-  // 열려있는 관리자 팝업 메뉴 닫기
-  const adminMenu = document.getElementById('admin-tab-menu');
-  if (adminMenu) adminMenu.remove();
-  // 현재 홈이 아니면 홈으로 이동
-  if (!document.getElementById('page-home').classList.contains('active')) {
-    showPage('home');
-  }
-  // 모바일 탭바 홈 활성화
+function selectMainCat(main) {
+  currentMainCat = main;
+  currentSubCat = '';
+  currentCat = main; // 하위 호환
+  document.getElementById('admin-tab-menu')?.remove();
+  if (!document.getElementById('page-home').classList.contains('active')) showPage('home');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   const homeTab = document.getElementById('tab-home');
   if (homeTab) homeTab.classList.add('active');
   renderNavCats(); renderCatTabs(); renderSidebarCats();
   loadPosts();
+}
+
+function selectSubCat(sub) {
+  currentSubCat = sub === '전체' ? '' : sub;
+  currentCat = currentSubCat ? currentMainCat+'/'+currentSubCat : currentMainCat;
+  renderCatTabs();
+  loadPosts();
+}
+
+function selectCat(cat) { // 하위 호환
+  if (cat === '전체') { selectMainCat('전체'); return; }
+  if (cat.includes('/')) { const [m,s]=cat.split('/'); selectMainCat(m); selectSubCat(s); return; }
+  selectMainCat(cat);
 }
 
 function setSort(mode) {
@@ -1450,7 +1526,13 @@ async function loadPosts() {
       let q = window._fb.query(window._fb.collection(db,'posts'), window._fb.orderBy('createdAt','desc'), window._fb.limit(30));
       const snap = await window._fb.getDocs(q);
       snap.forEach(d => posts.push({id:d.id,...d.data()}));
-      if (currentCat !== '전체') posts = posts.filter(p=>p.category===currentCat);
+      if (currentMainCat !== '전체') {
+        if (currentSubCat) {
+          posts = posts.filter(p=>p.category===currentMainCat+'/'+currentSubCat||p.category===currentSubCat||p.categoryMain===currentMainCat&&p.categorySub===currentSubCat);
+        } else {
+          posts = posts.filter(p=>p.category===currentMainCat||p.categoryMain===currentMainCat||(p.category&&p.category.startsWith(currentMainCat+'/')));
+        }
+      }
       if (currentSort === 'likes') posts.sort((a,b)=>(b.likes||0)-(a.likes||0));
     } catch(e) { posts = getFilteredDemo(); }
   } else {
@@ -1466,7 +1548,13 @@ async function loadPosts() {
 
 function getFilteredDemo() {
   let list = [...demoPosts];
-  if (currentCat !== '전체') list = list.filter(p=>p.category===currentCat);
+  if (currentMainCat !== '전체') {
+    if (currentSubCat) {
+      list = list.filter(p=>p.category===currentMainCat+'/'+currentSubCat||p.category===currentSubCat||p.categoryMain===currentMainCat&&p.categorySub===currentSubCat);
+    } else {
+      list = list.filter(p=>p.category===currentMainCat||p.categoryMain===currentMainCat||(p.category&&p.category.startsWith(currentMainCat+'/')));
+    }
+  }
   if (currentSort === 'likes') list.sort((a,b)=>b.likes-a.likes);
   else list.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
   return list;
@@ -1489,7 +1577,7 @@ function renderPostCard(p) {
       </div>
       <div class="post-body">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:4px;">
-          <div class="post-cat">${p.category||''}</div>
+          <div class="post-cat">${getCatLabel(p.category)||''}</div>
           <button onclick="event.stopPropagation();toggleBookmark('${p.id}')" id="bm-btn-${p.id}"
             style="background:none;border:none;font-size:16px;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0;touch-action:manipulation;opacity:${isBookmarked?'1':'0.35'};"
             title="${isBookmarked?'북마크 해제':'북마크'}">${isBookmarked?'⭐':'☆'}</button>
@@ -1561,7 +1649,7 @@ function renderDetail(p) {
   const tags = (p.tags||[]).map(t=>`<span class="post-tag">${t}</span>`).join('');
   const ytId = extractYtId(p.youtube||'');
   document.getElementById('detail-content').innerHTML = `
-    <div class="detail-cat">${p.category||''} ${p.instrument?'· '+p.instrument:''} ${p.level?'· '+p.level:''}</div>
+    <div class="detail-cat">${getCatLabel(p.category)||''} ${p.instrument?'· '+p.instrument:''} ${p.level?'· '+p.level:''}</div>
     ${(p.key||p.bpm||p.measures) ? `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
       ${p.key?`<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;background:rgba(66,133,244,0.08);border:1px solid rgba(66,133,244,0.2);font-size:12px;font-weight:600;color:#4285f4;">🎵 ${p.key}</span>`:''}
@@ -1850,8 +1938,16 @@ async function openEditModal(postId) {
   if (!post) { showToast('게시물을 찾을 수 없어요', 'error'); return; }
 
   // 카테고리 옵션 채우기
-  const catSel = document.getElementById('edit-cat');
-  catSel.innerHTML = CATEGORIES.slice(1).map(c => `<option${c===post.category?' selected':''}>${c}</option>`).join('');
+  const catMainSel = document.getElementById('edit-cat-main');
+  catMainSel.innerHTML = '<option value="">대분류 선택</option>' + Object.keys(CAT_DATA).map(m=>`<option value="${m}">${m}</option>`).join('');
+  // 기존 카테고리 파싱
+  let postMain='', postSub='';
+  if (post.category && post.category.includes('/')) { [postMain,postSub]=post.category.split('/'); }
+  else if (post.category && post.category!=='전체') { postMain=post.category; }
+  catMainSel.value = postMain;
+  const catSubSel = document.getElementById('edit-cat-sub');
+  const subs = CAT_DATA[postMain]||[];
+  catSubSel.innerHTML = '<option value="">소분류 (선택사항)</option>'+subs.map(s=>`<option value="${s}"${s===postSub?' selected':''}>${s}</option>`).join('');
 
   // 필드 채우기
   document.getElementById('edit-title').value = post.title || '';
@@ -1952,9 +2048,11 @@ function editPartFileChosen(input) {
 
 async function submitEdit() {
   const title = document.getElementById('edit-title').value.trim();
-  const cat = document.getElementById('edit-cat').value;
+  const catMain = document.getElementById('edit-cat-main').value;
+  const catSub = document.getElementById('edit-cat-sub').value;
+  const cat = catMain?(catSub?catMain+'/'+catSub:catMain):'';
   if (!title) { showToast('제목을 입력해주세요', 'error'); return; }
-  if (!cat) { showToast('카테고리를 선택해주세요', 'error'); return; }
+  if (!catMain) { showToast('카테고리를 선택해주세요', 'error'); return; }
 
   const tags = document.getElementById('edit-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
   const instruments = [...new Set(editParts.map(p=>p.instrument))];
@@ -2324,7 +2422,8 @@ async function loadRelated(category, excludeId) {
       snap.forEach(d => { if(d.id!==excludeId) posts.push({id:d.id,...d.data()}); });
     } catch(e) {}
   } else {
-    posts = demoPosts.filter(p=>p.category===category&&p.id!==excludeId).slice(0,4);
+    const catMain2=category?category.split('/')[0]:'';
+    posts = demoPosts.filter(p=>p.id!==excludeId&&p.category&&(p.category===category||p.category.startsWith(catMain2+'/'))  ).slice(0,4);
   }
   document.getElementById('related-posts').innerHTML = posts.slice(0,4).map(p =>
     `<div class="side-item" onclick="openPost('${p.id}')"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.title}</span><span class="side-num">❤ ${p.likes||0}</span></div>`
@@ -2343,6 +2442,8 @@ function startUpload() {
   ['up-title','up-composer','up-desc','up-tags','up-youtube','up-blog','up-bpm','up-measures'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const lv=document.getElementById('up-level'); if(lv) lv.value='';
   const ky=document.getElementById('up-key'); if(ky) ky.value='';
+  const ucm=document.getElementById('up-cat-main'); if(ucm) ucm.value='';
+  const ucs=document.getElementById('up-cat-sub'); if(ucs) ucs.innerHTML='<option value="">소분류 (선택사항)</option>';
   addInstrumentPart(); // 기본 1개 추가
 }
 
@@ -2402,7 +2503,9 @@ function processUploadFile(f) {
 
 async function submitPost() {
   const title=document.getElementById('up-title').value.trim();
-  const cat=document.getElementById('up-cat').value;
+  const catMain=document.getElementById('up-cat-main').value;
+  const catSub=document.getElementById('up-cat-sub').value;
+  const cat=catMain?(catSub?catMain+'/'+catSub:catMain):'';
   if(!title){showToast('제목을 입력해주세요','error');return;}
   if(!cat){showToast('카테고리를 선택해주세요','error');return;}
   if(!window._me){openAuth();return;}
@@ -2487,80 +2590,113 @@ async function submitPost() {
 }
 
 // ── CATEGORY MANAGE ──
-let editCats = [];
-let dragIdx = null;
+// ── 카테고리 관리 ──
+let editCatData = {};
+let editMainCat = ''; // 현재 선택된 대분류
 
 function openCatManage() {
   if (!isAdmin()) { showToast('관리자만 수정할 수 있어요', 'error'); return; }
-  editCats = [...CATEGORIES];
-  renderCatList();
-  document.getElementById('new-cat-input').value = '';
+  editCatData = JSON.parse(JSON.stringify(CAT_DATA));
+  const mains = Object.keys(editCatData);
+  editMainCat = mains[0] || '';
+  document.getElementById('new-main-input').value = '';
+  document.getElementById('new-sub-input').value = '';
+  renderCatManage();
   document.getElementById('cat-modal').classList.add('open');
 }
 
-function renderCatList() {
-  document.getElementById('cat-list').innerHTML = editCats.map((c, i) => `
-    <div id="cat-item-${i}" draggable="true"
-      ondragstart="dragIdx=${i};this.style.opacity='0.4'"
-      ondragend="this.style.opacity='1'"
-      ondragover="event.preventDefault()"
-      ondrop="dropCat(event,${i})"
-      style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:grab;transition:all 0.1s;">
-      <span style="color:var(--text3);font-size:14px;cursor:grab;">⠿</span>
-      <span style="flex:1;font-size:14px;color:${c==='전체'?'var(--text3)':'var(--text)'};">${c}</span>
-      ${c === '전체'
-        ? `<span style="font-size:11px;color:var(--text3);padding:2px 8px;border-radius:10px;background:var(--border);">고정</span>`
-        : `<button onclick="editCatName(${i})" style="font-size:11px;padding:3px 8px;border-radius:6px;background:transparent;border:1px solid var(--border);color:var(--text2);cursor:pointer;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">수정</button>
-           <button onclick="deleteCat(${i})" style="font-size:11px;padding:3px 8px;border-radius:6px;background:transparent;border:1px solid rgba(192,57,43,0.2);color:#c0392b;cursor:pointer;">삭제</button>`
-      }
-    </div>
-  `).join('');
+function renderCatManage() {
+  const mains = Object.keys(editCatData);
+  // 대분류 탭
+  document.getElementById('cat-main-tabs').innerHTML = mains.map(m => `
+    <button onclick="editMainCat='${m}';renderCatManage()" style="padding:6px 14px;border-radius:20px;font-size:12px;border:1px solid ${m===editMainCat?'var(--accent)':'var(--border)'};background:${m===editMainCat?'var(--accent-bg)':'transparent'};color:${m===editMainCat?'var(--accent)':'var(--text2)'};cursor:pointer;font-family:'Pretendard',sans-serif;display:flex;align-items:center;gap:5px;">
+      ${m}
+      <span onclick="event.stopPropagation();deleteMainCat('${m}')" style="font-size:14px;opacity:0.5;cursor:pointer;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'">×</span>
+    </button>
+  `).join('') + (mains.length===0?'<span style="font-size:13px;color:var(--text3);">대분류를 추가해주세요</span>':'');
+
+  // 소분류 목록
+  const subs = editMainCat ? (editCatData[editMainCat]||[]) : [];
+  document.getElementById('cat-sub-section').style.display = editMainCat ? 'block' : 'none';
+  document.getElementById('cat-sub-list').innerHTML = subs.length
+    ? subs.map((s,i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);">
+        <span style="flex:1;font-size:13px;">${s}</span>
+        <button onclick="editSubName('${editMainCat}',${i})" style="font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">수정</button>
+        <button onclick="deleteSubCat('${editMainCat}',${i})" style="font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid rgba(192,57,43,0.2);background:transparent;color:#c0392b;cursor:pointer;">삭제</button>
+      </div>`)
+    .join('')
+    : `<div style="font-size:12px;color:var(--text3);padding:6px 0;">소분류가 없어요. 추가해보세요!</div>`;
 }
 
-function dropCat(e, toIdx) {
-  e.preventDefault();
-  if (dragIdx === null || dragIdx === toIdx) return;
-  if (dragIdx === 0 || toIdx === 0) return; // '전체' 이동 불가
-  const moved = editCats.splice(dragIdx, 1)[0];
-  editCats.splice(toIdx, 0, moved);
-  dragIdx = null;
-  renderCatList();
+function addMainCat() {
+  const name = document.getElementById('new-main-input').value.trim();
+  if (!name) { showToast('대분류 이름을 입력해주세요', 'error'); return; }
+  if (editCatData[name]) { showToast('이미 있는 대분류예요', 'error'); return; }
+  editCatData[name] = [];
+  editMainCat = name;
+  document.getElementById('new-main-input').value = '';
+  renderCatManage();
 }
 
-function addCategory() {
-  const name = document.getElementById('new-cat-input').value.trim();
-  if (!name) { showToast('카테고리 이름을 입력해주세요', 'error'); return; }
-  if (editCats.includes(name)) { showToast('이미 있는 카테고리예요', 'error'); return; }
-  editCats.push(name);
-  document.getElementById('new-cat-input').value = '';
-  renderCatList();
+function deleteMainCat(main) {
+  if (!confirm(`'${main}' 대분류와 소분류를 모두 삭제할까요?\n기존 악보는 유지됩니다.`)) return;
+  delete editCatData[main];
+  const mains = Object.keys(editCatData);
+  editMainCat = mains[0] || '';
+  renderCatManage();
 }
 
-function editCatName(idx) {
-  const cur = editCats[idx];
-  const name = prompt('카테고리 이름 수정:', cur);
-  if (!name || name.trim() === cur) return;
-  if (editCats.includes(name.trim())) { showToast('이미 있는 카테고리예요', 'error'); return; }
-  editCats[idx] = name.trim();
-  renderCatList();
+function addSubCat() {
+  if (!editMainCat) { showToast('대분류를 먼저 선택해주세요', 'error'); return; }
+  const name = document.getElementById('new-sub-input').value.trim();
+  if (!name) { showToast('소분류 이름을 입력해주세요', 'error'); return; }
+  if ((editCatData[editMainCat]||[]).includes(name)) { showToast('이미 있는 소분류예요', 'error'); return; }
+  if (!editCatData[editMainCat]) editCatData[editMainCat] = [];
+  editCatData[editMainCat].push(name);
+  document.getElementById('new-sub-input').value = '';
+  renderCatManage();
 }
 
-function deleteCat(idx) {
-  if (editCats[idx] === '전체') return;
-  if (!confirm(`'${editCats[idx]}' 카테고리를 삭제할까요?\n기존 악보는 유지됩니다.`)) return;
-  editCats.splice(idx, 1);
-  renderCatList();
+function deleteSubCat(main, idx) {
+  if (!confirm(`'${editCatData[main][idx]}' 소분류를 삭제할까요?`)) return;
+  editCatData[main].splice(idx, 1);
+  renderCatManage();
+}
+
+function editSubName(main, idx) {
+  const cur = editCatData[main][idx];
+  const name = prompt('소분류 이름 수정:', cur);
+  if (!name || name.trim()===cur) return;
+  if (editCatData[main].includes(name.trim())) { showToast('이미 있는 소분류예요', 'error'); return; }
+  editCatData[main][idx] = name.trim();
+  renderCatManage();
+}
+
+// 대분류 변경 시 소분류 select 업데이트
+function onMainCatChange(mainVal, subSelectId) {
+  const subSel = document.getElementById(subSelectId);
+  if (!subSel) return;
+  const subs = CAT_DATA[mainVal] || [];
+  subSel.innerHTML = '<option value="">소분류 (선택사항)</option>' + subs.map(s=>`<option value="${s}">${s}</option>`).join('');
 }
 
 async function saveCatChanges() {
-  if (editCats.length < 2) { showToast('최소 1개 이상의 카테고리가 필요해요', 'error'); return; }
-  CATEGORIES = [...editCats];
+  CAT_DATA = JSON.parse(JSON.stringify(editCatData));
+  CATEGORIES = flatCategories();
+  localStorage.setItem('sk_cat_data', JSON.stringify(CAT_DATA));
   await saveCategories();
-  if (currentCat !== '전체' && !CATEGORIES.includes(currentCat)) currentCat = '전체';
+  if (currentMainCat !== '전체' && !CAT_DATA[currentMainCat]) { currentMainCat='전체'; currentSubCat=''; currentCat='전체'; }
   renderNavCats(); renderCatTabs(); renderSidebarCats(); renderNavCatUpload();
   document.getElementById('cat-modal').classList.remove('open');
   showToast('✓ 카테고리가 저장됐습니다!', 'success');
 }
+
+// 구버전 호환 함수들
+function renderCatList() { renderCatManage(); }
+function addCategory() { addSubCat(); }
+function editCatName() {}
+function deleteCat() {}
 // ── ADMIN PAGE ──
 function showAdminPage() {
   if (!isAdmin()) { showToast('관리자만 접근할 수 있어요', 'error'); return; }
@@ -2804,10 +2940,13 @@ function handleHashNavigation() {
 // goHome — 해시 제거 + 홈으로 이동
 function goHome() {
   history.replaceState(null, '', location.pathname + location.search);
-  const adminMenu = document.getElementById('admin-tab-menu');
-  if (adminMenu) adminMenu.remove();
+  document.getElementById('admin-tab-menu')?.remove();
   currentPostId = null;
+  currentMainCat = '전체';
+  currentSubCat = '';
+  currentCat = '전체';
   showPage('home');
+  renderNavCats(); renderCatTabs(); renderSidebarCats();
   loadPosts();
 }
 
