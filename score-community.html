@@ -330,7 +330,32 @@ label { display: block; font-size: 11px; font-weight: 700; color: var(--text2); 
 .page { display: none; }
 .page.active { display: block; }
 
-/* BACK BTN */
+/* NAV HOVER DROPDOWN */
+.nav-cat-wrap { position: relative; display: inline-flex; }
+.nav-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%; left: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  z-index: 200;
+  min-width: 140px;
+  overflow: hidden;
+  padding: 4px 0;
+}
+.nav-dropdown-item {
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s;
+  font-family: 'Pretendard', sans-serif;
+}
+.nav-dropdown-item:hover { background: var(--bg2); }
+.nav-dropdown-item.active { color: var(--accent); font-weight: 600; background: var(--accent-bg); }
 .back-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 13px; border-radius: 20px; background: transparent; border: 1px solid var(--border); color: var(--text2); cursor: pointer; font-size: 12px; font-family: 'Pretendard', sans-serif; margin-bottom: 1rem; transition: all 0.12s; touch-action: manipulation; }
 .back-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
 
@@ -1436,30 +1461,129 @@ function renderNavCats() {
   const mains = ['전체', ...Object.keys(CAT_DATA)];
   document.getElementById('nav-cats').innerHTML = mains.map(c => {
     const isActive = c==='전체' ? currentMainCat==='전체' : currentMainCat===c;
-    return `<button class="nav-cat-btn ${isActive?'active':''}" onclick="selectMainCat('${c}')">${c}</button>`;
+    const hasSubs = c!=='전체' && CAT_DATA[c]?.length > 0;
+    const subLabel = (isActive && currentSubCat) ? ` › ${currentSubCat}` : '';
+
+    if (!hasSubs) {
+      // 소분류 없으면 클릭만
+      return `<button class="nav-cat-btn ${isActive?'active':''}" onclick="selectMainCat('${c}')">${c}${subLabel}</button>`;
+    }
+
+    // 소분류 있으면 hover 드롭다운
+    const subItems = CAT_DATA[c].map(s => `
+      <div class="nav-dropdown-item ${currentMainCat===c&&currentSubCat===s?'active':''}"
+        onclick="selectMainCat('${c}');selectSubCat('${s}')">
+        ${s}
+      </div>`).join('');
+
+    return `
+      <div class="nav-cat-wrap" onmouseenter="openNavDropdown(this)" onmouseleave="closeNavDropdown(this)">
+        <button class="nav-cat-btn ${isActive?'active':''}" onclick="selectMainCat('${c}')">
+          ${c}${subLabel} <span style="font-size:9px;opacity:0.6;">▾</span>
+        </button>
+        <div class="nav-dropdown">
+          <div class="nav-dropdown-item ${isActive&&!currentSubCat?'active':''}" onclick="selectMainCat('${c}')">
+            📁 ${c} 전체
+          </div>
+          ${subItems}
+        </div>
+      </div>`;
   }).join('');
+}
+
+function openNavDropdown(wrap) {
+  wrap.querySelector('.nav-dropdown').style.display = 'block';
+}
+function closeNavDropdown(wrap) {
+  wrap.querySelector('.nav-dropdown').style.display = 'none';
 }
 
 function renderCatTabs() {
   const mains = ['전체', ...Object.keys(CAT_DATA)];
-  const mainHtml = mains.map(c => {
+  // 대분류 탭
+  const mainBtns = mains.map(c => {
     const isActive = c==='전체' ? currentMainCat==='전체' : currentMainCat===c;
-    return `<button onclick="selectMainCat('${c}')" style="padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid ${isActive?'var(--accent)':'var(--border)'};background:${isActive?'var(--accent-bg)':'transparent'};color:${isActive?'var(--accent)':'var(--text2)'};cursor:pointer;font-family:'Pretendard',sans-serif;transition:all 0.12s;white-space:nowrap;">${c}</button>`;
+    return `<button onclick="selectMainCatTab('${c}')" style="padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid ${isActive?'var(--accent)':'var(--border)'};background:${isActive?'var(--accent-bg)':'transparent'};color:${isActive?'var(--accent)':'var(--text2)'};cursor:pointer;font-family:'Pretendard',sans-serif;transition:all 0.12s;white-space:nowrap;flex-shrink:0;">${c}</button>`;
   }).join('');
 
-  // 소분류 탭
-  let subHtml = '';
-  if (currentMainCat !== '전체' && CAT_DATA[currentMainCat]) {
+  // 소분류 탭 (대분류 선택 시 아래에 표시)
+  let subRow = '';
+  if (currentMainCat !== '전체' && CAT_DATA[currentMainCat]?.length > 0) {
     const subs = ['전체', ...CAT_DATA[currentMainCat]];
-    subHtml = `<div style="display:flex;gap:5px;flex-wrap:nowrap;overflow-x:auto;padding:6px 0 4px;border-top:1px solid var(--border);margin-top:4px;scrollbar-width:none;" id="sub-cat-tabs">
+    subRow = `<div style="display:flex;gap:5px;overflow-x:auto;padding:5px 0 2px;border-top:1px solid var(--border);margin-top:6px;scrollbar-width:none;">
       ${subs.map(s => {
-        const key = s==='전체' ? currentMainCat : currentMainCat+'/'+s;
         const isActive = s==='전체' ? currentSubCat==='' : currentSubCat===s;
-        return `<button onclick="selectSubCat('${s}')" style="padding:4px 11px;border-radius:20px;font-size:11px;border:1px solid ${isActive?'var(--accent)':'var(--border2)'};background:${isActive?'var(--accent-bg)':'transparent'};color:${isActive?'var(--accent)':'var(--text2)'};cursor:pointer;font-family:'Pretendard',sans-serif;white-space:nowrap;flex-shrink:0;">${s}</button>`;
+        return `<button onclick="selectSubCat('${s}')" style="padding:4px 11px;border-radius:20px;font-size:11px;border:1px solid ${isActive?'var(--accent)':'var(--border2)'};background:${isActive?'var(--accent-bg)':'transparent'};color:${isActive?'var(--accent)':'var(--text2)'};cursor:pointer;font-family:'Pretendard',sans-serif;white-space:nowrap;flex-shrink:0;transition:all 0.1s;">${s}</button>`;
       }).join('')}
     </div>`;
   }
-  document.getElementById('cat-tabs').innerHTML = `<div style="display:flex;gap:5px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;">${mainHtml}</div>${subHtml}`;
+  document.getElementById('cat-tabs').innerHTML =
+    `<div style="display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;">${mainBtns}</div>${subRow}`;
+}
+
+// 모바일 탭용 - 드롭다운 없이 바로 선택
+function selectMainCatTab(main) {
+  currentMainCat = main;
+  currentSubCat = '';
+  currentCat = main;
+  document.getElementById('cat-dropdown')?.remove();
+  document.getElementById('admin-tab-menu')?.remove();
+  if (!document.getElementById('page-home').classList.contains('active')) showPage('home');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const homeTab = document.getElementById('tab-home');
+  if (homeTab) homeTab.classList.add('active');
+  renderNavCats(); renderCatTabs(); renderSidebarCats();
+  loadPosts();
+}
+
+// 드롭다운 열기/닫기
+function toggleCatDropdown(main, btn, type) {
+  // 기존 드롭다운 제거
+  document.getElementById('cat-dropdown')?.remove();
+
+  // 전체이거나 소분류 없으면 바로 선택
+  if (main === '전체' || !CAT_DATA[main] || CAT_DATA[main].length === 0) {
+    selectMainCat(main);
+    return;
+  }
+
+  // 이미 같은 대분류 드롭다운이 열려있으면 그냥 선택
+  const existing = document.getElementById('cat-dropdown');
+  if (existing) { existing.remove(); selectMainCat(main); return; }
+
+  // 드롭다운 생성
+  const subs = CAT_DATA[main];
+  const rect = btn.getBoundingClientRect();
+  const dropdown = document.createElement('div');
+  dropdown.id = 'cat-dropdown';
+  dropdown.style.cssText = `position:fixed;top:${rect.bottom+4}px;left:${rect.left}px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);z-index:300;min-width:140px;overflow:hidden;`;
+
+  // 전체(대분류) 항목
+  dropdown.innerHTML = `
+    <div onclick="selectMainCat('${main}');document.getElementById('cat-dropdown')?.remove()" style="padding:9px 14px;font-size:13px;color:var(--accent);font-weight:600;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      📁 ${main} 전체
+    </div>
+    ${subs.map(s => `
+    <div onclick="selectMainCat('${main}');selectSubCat('${s}');document.getElementById('cat-dropdown')?.remove()" style="padding:8px 14px 8px 22px;font-size:13px;color:var(--text);cursor:pointer;${currentMainCat===main&&currentSubCat===s?'background:var(--accent-bg);color:var(--accent);font-weight:500;':''}" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background='${currentMainCat===main&&currentSubCat===s?'var(--accent-bg)':''}'">${s}</div>
+    `).join('')}`;
+
+  document.body.appendChild(dropdown);
+
+  // 화면 밖으로 나가는지 체크
+  setTimeout(() => {
+    const dr = dropdown.getBoundingClientRect();
+    if (dr.right > window.innerWidth) dropdown.style.left = Math.max(8, window.innerWidth - dr.width - 8) + 'px';
+  }, 0);
+
+  // 외부 클릭 시 닫기
+  setTimeout(() => {
+    document.addEventListener('click', function handler(e) {
+      if (!dropdown.contains(e.target) && e.target !== btn) {
+        dropdown.remove();
+        document.removeEventListener('click', handler);
+      }
+    });
+  }, 100);
 }
 
 function renderSidebarCats() {
@@ -1480,7 +1604,8 @@ function renderNavCatUpload() {
 function selectMainCat(main) {
   currentMainCat = main;
   currentSubCat = '';
-  currentCat = main; // 하위 호환
+  currentCat = main;
+  document.getElementById('cat-dropdown')?.remove();
   document.getElementById('admin-tab-menu')?.remove();
   if (!document.getElementById('page-home').classList.contains('active')) showPage('home');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
