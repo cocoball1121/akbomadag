@@ -134,11 +134,11 @@ body { background: var(--bg); color: var(--text); font-family: 'Pretendard', san
 a { color: inherit; text-decoration: none; }
 
 /* NAV */
-nav { background: rgba(255,255,255,0.96); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 12px rgba(0,0,0,0.06); }
+nav { background: rgba(255,255,255,0.96); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 12px rgba(0,0,0,0.06); overflow: visible; }
 .nav-inner { max-width: 1120px; margin: 0 auto; display: flex; align-items: center; padding: 0 1.5rem; height: 60px; gap: 14px; }
 .logo { font-family: 'Nanum Myeongjo', serif; font-size: 22px; font-weight: 700; color: var(--accent); letter-spacing: -0.02em; cursor: pointer; flex-shrink: 0; user-select: none; }
 .logo span { color: var(--text); }
-.nav-cats { display: flex; gap: 2px; flex: 1; overflow-x: auto; scrollbar-width: none; }
+.nav-cats { display: flex; gap: 2px; flex: 1; overflow: visible; scrollbar-width: none; }
 .nav-cats::-webkit-scrollbar { display: none; }
 .nav-cat-btn { padding: 6px 13px; border-radius: 20px; font-size: 13px; background: transparent; border: none; cursor: pointer; color: var(--text2); white-space: nowrap; transition: all 0.14s; font-family: 'Pretendard', sans-serif; touch-action: manipulation; }
 .nav-cat-btn:hover { background: var(--bg2); color: var(--text); }
@@ -334,13 +334,12 @@ label { display: block; font-size: 11px; font-weight: 700; color: var(--text2); 
 .nav-cat-wrap { position: relative; display: inline-flex; }
 .nav-dropdown {
   display: none;
-  position: absolute;
-  top: calc(100% + 2px); left: 0;
+  position: fixed;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-md);
-  z-index: 200;
+  z-index: 500;
   min-width: 150px;
   overflow: hidden;
   padding: 4px 0;
@@ -1478,7 +1477,7 @@ function renderNavCats() {
       </div>`).join('');
 
     return `
-      <div class="nav-cat-wrap">
+      <div class="nav-cat-wrap" onmouseenter="positionDropdown(this)" >
         <button class="nav-cat-btn ${isActive?'active':''}" onclick="selectMainCat('${c}')">
           ${c}${subLabel} <span style="font-size:9px;opacity:0.6;">▾</span>
         </button>
@@ -1531,6 +1530,14 @@ function selectMainCatTab(main) {
 }
 
 // 드롭다운 열기/닫기
+function positionDropdown(wrap) {
+  const dd = wrap.querySelector('.nav-dropdown');
+  if (!dd) return;
+  const rect = wrap.getBoundingClientRect();
+  dd.style.top = rect.bottom + 'px';
+  dd.style.left = rect.left + 'px';
+}
+
 function toggleCatDropdown(main, btn, type) {
   // 기존 드롭다운 제거
   document.getElementById('cat-dropdown')?.remove();
